@@ -1,0 +1,75 @@
+/* General Styles */
+.home {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Navbar */
+.navbar {
+  background: #333;
+  color: white;
+  padding: 15px 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 20px;
+}
+.nav-links li a {
+  color: white;
+  text-decoration: none;
+  transition: 0.3s;
+}
+.nav-links li a:hover {
+  color: #f39c12;
+}
+
+/* Hero Section */
+.hero {
+  height: 80vh;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+.hero-content h1 {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+.hero-content p {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+.hero-content button {
+  padding: 10px 20px;
+  border: none;
+  background: #f39c12;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.hero-content button:hover {
+  background: #e67e22;
+}
+
+/* Footer */
+.footer {
+  background: #333;
+  color: white;
+  text-align: center;
+  padding: 15px 0;
+}
