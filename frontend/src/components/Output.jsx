@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Box, Button, Text, useToast } from "@chakra-ui/react";
 import { executeCode } from "../api";
 
 const Output = ({ editorRef, language }) => {
-  const toast = useToast();
   const [output, setOutput] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -18,44 +16,37 @@ const Output = ({ editorRef, language }) => {
       result.stderr ? setIsError(true) : setIsError(false);
     } catch (error) {
       console.log(error);
-      toast({
-        title: "An error occurred.",
-        description: error.message || "Unable to run code",
-        status: "error",
-        duration: 6000,
-      });
+      alert(`An error occurred: ${error.message || "Unable to run code"}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Box w="50%">
-      <Text mb={2} fontSize="lg">
+    <div className="w-full">
+      <p className="mb-2 text-lg text-monaco-text">
         Output
-      </Text>
-      <Button
-        variant="outline"
-        colorScheme="green"
-        mb={4}
-        isLoading={isLoading}
+      </p>
+      <button
+        className={`monaco-button monaco-button-primary mb-4 ${
+          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
         onClick={runCode}
+        disabled={isLoading}
       >
-        Run Code
-      </Button>
-      <Box
-        height="75vh"
-        p={2}
-        color={isError ? "red.400" : ""}
-        border="1px solid"
-        borderRadius={4}
-        borderColor={isError ? "red.500" : "#333"}
+        {isLoading ? 'Running...' : 'Run Code'}
+      </button>
+      <div
+        className={`h-[75vh] p-2 border rounded monaco-input ${
+          isError ? 'text-red-400 border-red-500' : 'text-monaco-text border-monaco-border'
+        }`}
       >
         {output
-          ? output.map((line, i) => <Text key={i}>{line}</Text>)
+          ? output.map((line, i) => <p key={i} className="text-sm">{line}</p>)
           : 'Click "Run Code" to see the output here'}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
+
 export default Output;

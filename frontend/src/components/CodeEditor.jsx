@@ -1,34 +1,172 @@
 // CodeEditor.jsx
-import React, { useRef, useState, useEffect, useMemo } from "react";
-import {
-  Box,
-  HStack,
-  VStack,
-  Button,
-  IconButton,
-  Text,
-  Heading,
-  Divider,
-  useToast,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Tooltip,
-} from "@chakra-ui/react";
-import {
-  AddIcon,
-  DeleteIcon,
-  EditIcon,
-  ExternalLinkIcon,
-  ViewIcon,
-  RepeatIcon,
-  UnlockIcon,
-} from "@chakra-ui/icons";
-import { Editor } from "@monaco-editor/react";
+import React, { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import { Editor, loader } from "@monaco-editor/react";
+import * as monaco from 'monaco-editor';
 import LanguageSelector from "./LanguageSelector";
 import { CODE_SNIPPETS } from "../constants";
 import Output from "./Output";
+import { enhanceMonacoEditor } from "../utils/monacoEnhancements";
+import VirtualizedTree from "./VirtualizedTree";
+import CommandPalette from "./CommandPalette";
+import AdvancedSearch from "./AdvancedSearch";
+import PerformanceDashboard from "./PerformanceDashboard";
+import IntegratedTerminal from "./IntegratedTerminal";
+import TabManager from "./TabManager";
+import { MemoryMonitor, CleanupManager, scheduleGC } from "../utils/memoryOptimization";
+
+// Icons
+const AddIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+  </svg>
+);
+
+const DeleteIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+  </svg>
+);
+
+const ExternalLinkIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+  </svg>
+);
+
+const ViewIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+  </svg>
+);
+
+const RepeatIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4 4-4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/>
+  </svg>
+);
+
+const UnlockIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/>
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+  </svg>
+);
+
+// Custom UI Components for Tailwind
+const Button = ({ children, onClick, className = "", variant = "primary", size = "sm", disabled = false, ...props }) => {
+  const baseClasses = "monaco-button inline-flex items-center justify-center";
+  const variantClasses = {
+    primary: "monaco-button-primary",
+    secondary: "monaco-button-secondary",
+    ghost: "monaco-button-ghost"
+  };
+  const sizeClasses = {
+    sm: "text-sm px-3 py-1.5",
+    md: "text-base px-4 py-2",
+    lg: "text-lg px-6 py-3"
+  };
+  
+  return (
+    <button
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const IconButton = ({ icon, onClick, className = "", variant = "ghost", size = "sm", "aria-label": ariaLabel, title, disabled = false }) => {
+  return (
+    <Button
+      onClick={onClick}
+      variant={variant}
+      size={size}
+      className={`p-2 ${className}`}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      title={title}
+    >
+      {icon}
+    </Button>
+  );
+};
+
+const Tooltip = ({ children, label }) => {
+  return (
+    <div className="relative group">
+      {children}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+        {label}
+      </div>
+    </div>
+  );
+};
+
+const Menu = ({ children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative">
+      {React.Children.map(children, child => 
+        React.cloneElement(child, { isOpen, setIsOpen })
+      )}
+    </div>
+  );
+};
+
+const MenuButton = ({ children, isOpen, setIsOpen }) => {
+  return (
+    <Button
+      onClick={() => setIsOpen(!isOpen)}
+      variant="ghost"
+      size="sm"
+      className="relative"
+    >
+      {children}
+    </Button>
+  );
+};
+
+const MenuList = ({ children, isOpen }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="absolute top-full right-0 mt-1 bg-monaco-sidebar border border-monaco-border rounded-lg shadow-lg py-1 min-w-48 z-50">
+      {children}
+    </div>
+  );
+};
+
+const MenuItem = ({ children, onClick }) => {
+  return (
+    <button
+      className="block w-full text-left px-4 py-2 text-sm text-monaco-text hover:bg-monaco-hover transition-colors"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+};
+
+const useToast = () => {
+  return (options) => {
+    // Simple toast implementation or integrate with a toast library
+    console.log('Toast:', options.title, options.description);
+    alert(`${options.title}: ${options.description}`);
+  };
+};
 
 /**
  * Enhanced CodeEditor
@@ -50,30 +188,82 @@ import Output from "./Output";
 
 /* ----------------------------- Utilities ----------------------------- */
 
-const defaultProject = [
-  {
-    name: "index.html",
-    type: "file",
-    path: "index.html",
-    content:
-      '<!doctype html>\n<html>\n  <head>\n    <meta charset="utf-8">\n    <title>Preview</title>\n    <link rel="stylesheet" href="styles.css">\n  </head>\n  <body>\n    <h1>Hello, Alex!</h1>\n    <script src="script.js"></script>\n  </body>\n</html>\n',
-    handle: null,
+// Debounce utility for performance optimization
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// Advanced Monaco Editor configuration for VS Code-like performance
+const getEditorOptions = (language) => ({
+  // Performance optimizations
+  minimap: { enabled: true, scale: 1, renderCharacters: false },
+  fontSize: 14,
+  fontFamily: "'Cascadia Code', 'Fira Code', 'Monaco', 'Consolas', monospace",
+  lineHeight: 22,
+  wordWrap: "on",
+  automaticLayout: true,
+  
+  // Advanced editing features
+  multiCursorModifier: "ctrlCmd",
+  selectOnLineNumbers: true,
+  matchBrackets: "always",
+  folding: true,
+  foldingStrategy: "auto",
+  showFoldingControls: "always",
+  
+  // IntelliSense and suggestions
+  suggestOnTriggerCharacters: true,
+  acceptSuggestionOnCommitCharacter: true,
+  acceptSuggestionOnEnter: "on",
+  quickSuggestions: {
+    other: true,
+    comments: true,
+    strings: true
   },
-  {
-    name: "styles.css",
-    type: "file",
-    path: "styles.css",
-    content: "body{font-family:Arial, Helvetica, sans-serif;background:#111;color:#ecf0f1;}h1{color:#8be9fd;}",
-    handle: null,
-  },
-  {
-    name: "script.js",
-    type: "file",
-    path: "script.js",
-    content: "console.log('Hello from script.js');",
-    handle: null,
-  },
-];
+  parameterHints: { enabled: true },
+  
+  // Code formatting
+  formatOnPaste: true,
+  formatOnType: true,
+  autoIndent: "full",
+  tabSize: 2,
+  insertSpaces: true,
+  
+  // Visual enhancements
+  renderLineHighlight: "gutter",
+  renderWhitespace: "selection",
+  renderControlCharacters: true,
+  renderIndentGuides: true,
+  highlightActiveIndentGuide: true,
+  bracketPairColorization: { enabled: true },
+  
+  // Performance settings
+  scrollBeyondLastLine: false,
+  smoothScrolling: true,
+  cursorBlinking: "smooth",
+  cursorSmoothCaretAnimation: "on",
+  
+  // Language-specific optimizations
+  ...(language === 'javascript' || language === 'typescript' ? {
+    semanticHighlighting: { enabled: true },
+    hover: { enabled: true },
+    colorDecorators: true,
+  } : {}),
+  
+  // Memory optimization
+  wordBasedSuggestions: "currentDocument",
+  wordBasedSuggestionsOnlySameLanguage: true,
+});
+
+const defaultProject = [];
 
 const buildPath = (parentPath, name) => (parentPath ? `${parentPath}/${name}` : name);
 
@@ -182,7 +372,10 @@ const insertNodeAtParent = (nodes, parentPath, newNode) => {
 
 const CodeEditor = () => {
   const editorRef = useRef();
+  const monacoRef = useRef();
   const toast = useToast();
+  const memoryMonitor = useRef(new MemoryMonitor());
+  const cleanupManager = useRef(new CleanupManager());
 
   const [project, setProject] = useState(() => {
     try {
@@ -211,14 +404,80 @@ const CodeEditor = () => {
 
   const [dirHandle, setDirHandle] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [outputOpen, setOutputOpen] = useState(true);
+  const [rightPanelTab, setRightPanelTab] = useState('general'); // Simple general panel
+  const [bottomPanelOpen, setBottomPanelOpen] = useState(true);
+  const [isEditorReady, setIsEditorReady] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [openTabs, setOpenTabs] = useState(() => {
+    const files = collectAllFiles(project);
+    return files.length > 0 ? [{ path: files[0].path, name: files[0].name, content: files[0].content }] : [];
+  });
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+
+  // Debounced update functions for performance
+  const debouncedProjectUpdate = useCallback(
+    debounce((newProject) => {
+      try {
+        const serializable = JSON.parse(JSON.stringify(newProject, (k, v) => (k === "handle" ? undefined : v)));
+        localStorage.setItem("ide_project_v2", JSON.stringify(serializable));
+      } catch (e) {
+        console.warn('Failed to save project to localStorage:', e);
+      }
+    }, 500),
+    []
+  );
+
+  const debouncedContentUpdate = useCallback(
+    debounce((path, content) => {
+      setProject((prev) => updateNodeContent(prev, path, (n) => ({ ...n, content })));
+    }, 200),
+    []
+  );
 
   /* --------------------------- Persistence --------------------------- */
   useEffect(() => {
-    try {
-      const serializable = JSON.parse(JSON.stringify(project, (k, v) => (k === "handle" ? undefined : v)));
-      localStorage.setItem("ide_project_v2", JSON.stringify(serializable));
-    } catch (e) {
-      // ignore
+    debouncedProjectUpdate(project);
+  }, [project, debouncedProjectUpdate]);
+
+  /* ------------------------- Memory Management ------------------------ */
+  useEffect(() => {
+    // Start memory monitoring
+    memoryMonitor.current.startMonitoring(10000); // Every 10 seconds
+    
+    // Setup automatic cleanup
+    const removeAutoCleanup = cleanupManager.current.setupAutoCleanup();
+    
+    // Register cleanup tasks
+    const unregisterEditor = cleanupManager.current.register(() => {
+      if (editorRef.current) {
+        editorRef.current.dispose();
+      }
+      if (monacoRef.current) {
+        monacoRef.current.editor?.getModels()?.forEach(model => model.dispose());
+      }
+    }, 'Monaco Editor cleanup');
+    
+    const unregisterMemoryMonitor = cleanupManager.current.register(() => {
+      memoryMonitor.current.stopMonitoring();
+    }, 'Memory monitor cleanup');
+    
+    // Cleanup on component unmount
+    return () => {
+      memoryMonitor.current.stopMonitoring();
+      removeAutoCleanup();
+      unregisterEditor();
+      unregisterMemoryMonitor();
+      cleanupManager.current.executeAll();
+    };
+  }, []);
+  
+  // Trigger garbage collection after large operations
+  useEffect(() => {
+    if (project.length > 50) { // For large projects
+      scheduleGC(3000);
     }
   }, [project]);
 
@@ -232,10 +491,90 @@ const CodeEditor = () => {
   }, [selectedPath, project]);
 
   /* ----------------------------- Editor mount ----------------------------- */
-  const onMount = (editor) => {
+  const beforeMount = useCallback((monaco) => {
+    // Configure Monaco editor for VS Code-like performance
+    monacoRef.current = monaco;
+    
+    // Setup all Monaco enhancements
+    enhanceMonacoEditor(monaco, null);
+    
+    // Add useful keybindings for VS Code-like experience
+    monaco.editor.addKeybindingRules([
+      {
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP,
+        command: 'workbench.action.quickOpen'
+      },
+      {
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP,
+        command: 'workbench.action.showCommands'
+      },
+      {
+        keybinding: monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF,
+        command: 'actions.find'
+      }
+    ]);
+  }, []);
+
+  const onMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
+    setIsEditorReady(true);
+    
+    // Configure editor instance for optimal performance
+    editor.updateOptions(getEditorOptions(language));
+    
+    // Apply all Monaco enhancements to the editor instance
+    enhanceMonacoEditor(monaco, editor);
+    
+    // Add advanced actions
+    editor.addAction({
+      id: 'format-document',
+      label: 'Format Document',
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyI
+      ],
+      run: () => {
+        editor.getAction('editor.action.formatDocument')?.run();
+      }
+    });
+    
+    editor.addAction({
+      id: 'toggle-comment',
+      label: 'Toggle Comment',
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash
+      ],
+      run: () => {
+        editor.getAction('editor.action.commentLine')?.run();
+      }
+    });
+    
+    // Add multi-cursor support
+    editor.addAction({
+      id: 'add-cursor-above',
+      label: 'Add Cursor Above',
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.UpArrow
+      ],
+      run: () => {
+        editor.getAction('editor.action.insertCursorAbove')?.run();
+      }
+    });
+    
+    editor.addAction({
+      id: 'add-cursor-below',
+      label: 'Add Cursor Below',
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.DownArrow
+      ],
+      run: () => {
+        editor.getAction('editor.action.insertCursorBelow')?.run();
+      }
+    });
+    
+    // Focus the editor
     editor.focus();
-  };
+  }, [language]);
 
   const onSelectLanguage = (lang) => {
     setLanguage(lang);
@@ -375,10 +714,17 @@ const CodeEditor = () => {
     const name = prompt("Enter new file name (example: index.html):");
     if (!name) return;
     const path = buildPath(parentPath, name);
-    const newNode = { name, type: "file", path, content: CODE_SNIPPETS[extToLanguage(name)] || "", handle: null };
+    const content = CODE_SNIPPETS[extToLanguage(name)] || "";
+    const newNode = { name, type: "file", path, content, handle: null };
     setProject((prev) => insertNodeAtParent(prev, parentPath, newNode));
+    
+    // Add to tabs and switch to it
+    const newTab = { path, name, content };
+    setOpenTabs(prev => [...prev, newTab]);
+    setActiveTabIndex(openTabs.length);
+    
     setSelectedPath(path);
-    setValue(newNode.content);
+    setValue(content);
     setLanguage(extToLanguage(name));
   };
 
@@ -441,23 +787,214 @@ const CodeEditor = () => {
   const handleFileSelect = (path) => {
     const node = findNode(project, path);
     if (!node) return;
+    addOrSwitchToTab(path);
     setSelectedPath(path);
     setValue(node.content ?? CODE_SNIPPETS[extToLanguage(node.name)] ?? "");
     setLanguage(extToLanguage(node.name));
   };
 
-  const handleEditorChange = (val) => {
+  const handleEditorChange = useCallback((val) => {
     setValue(val);
-    // update in-memory project node content as user types
-    setProject((prev) => updateNodeContent(prev, selectedPath, (n) => ({ ...n, content: val })));
-  };
+    // Use debounced update to avoid excessive state updates
+    debouncedContentUpdate(selectedPath, val);
+    
+    // Update current tab content
+    setOpenTabs(prev => prev.map((tab, index) => 
+      index === activeTabIndex ? { ...tab, content: val } : tab
+    ));
+  }, [selectedPath, debouncedContentUpdate, activeTabIndex]);
+
+  /* ------------------------------- Command Execution ----------------------------- */
+  const executeCommand = useCallback((command) => {
+    switch (command.id) {
+      case 'file.new':
+        handleNewFile("");
+        break;
+      case 'file.save':
+        handleSave();
+        break;
+      case 'file.saveAll':
+        handleSaveAll();
+        break;
+      case 'file.open':
+      case 'project.openFolder':
+        handleOpenFolder({ importIntoSelected: false });
+        break;
+      case 'project.newFolder':
+        handleNewFolder("");
+        break;
+      case 'edit.find':
+        setIsSearchOpen(true);
+        break;
+      case 'edit.replace':
+        setIsSearchOpen(true);
+        break;
+      case 'edit.format':
+        if (editorRef.current) {
+          editorRef.current.getAction('editor.action.formatDocument')?.run();
+        }
+        break;
+      case 'edit.toggleComment':
+        if (editorRef.current) {
+          editorRef.current.getAction('editor.action.commentLine')?.run();
+        }
+        break;
+      case 'view.togglePreview':
+        setPreviewOpen(prev => !prev);
+        break;
+      case 'view.toggleOutput':
+        setOutputOpen(prev => !prev);
+        break;
+      case 'view.toggleTerminal':
+        setIsTerminalOpen(prev => !prev);
+        break;
+      case 'selection.selectAll':
+        if (editorRef.current) {
+          editorRef.current.getAction('editor.action.selectAll')?.run();
+        }
+        break;
+      case 'selection.addCursorAbove':
+        if (editorRef.current) {
+          editorRef.current.getAction('editor.action.insertCursorAbove')?.run();
+        }
+        break;
+      case 'selection.addCursorBelow':
+        if (editorRef.current) {
+          editorRef.current.getAction('editor.action.insertCursorBelow')?.run();
+        }
+        break;
+      default:
+        console.log('Command not implemented:', command.id);
+    }
+  }, [handleNewFile, handleSave, handleSaveAll, handleOpenFolder, handleNewFolder]);
+
+  /* ------------------------------- Tab Management -------------------------------- */
+  const handleTabChange = useCallback((index) => {
+    setActiveTabIndex(index);
+    const tab = openTabs[index];
+    if (tab) {
+      setSelectedPath(tab.path);
+      setValue(tab.content || "");
+      setLanguage(extToLanguage(tab.name));
+    }
+  }, [openTabs]);
+
+  const handleTabClose = useCallback((index) => {
+    const newTabs = openTabs.filter((_, i) => i !== index);
+    setOpenTabs(newTabs);
+    
+    if (newTabs.length === 0) {
+      setSelectedPath("");
+      setValue("");
+      setActiveTabIndex(0);
+    } else {
+      const newActiveIndex = Math.min(activeTabIndex, newTabs.length - 1);
+      setActiveTabIndex(newActiveIndex);
+      const tab = newTabs[newActiveIndex];
+      if (tab) {
+        setSelectedPath(tab.path);
+        setValue(tab.content || "");
+        setLanguage(extToLanguage(tab.name));
+      }
+    }
+  }, [openTabs, activeTabIndex]);
+
+  const handleNewTab = useCallback(() => {
+    handleNewFile("");
+  }, []);
+
+  const addOrSwitchToTab = useCallback((filePath) => {
+    const node = findNode(project, filePath);
+    if (!node || node.type !== 'file') return;
+
+    const existingIndex = openTabs.findIndex(tab => tab.path === filePath);
+    if (existingIndex !== -1) {
+      // Tab already exists, switch to it
+      setActiveTabIndex(existingIndex);
+    } else {
+      // Add new tab
+      const newTab = {
+        path: filePath,
+        name: node.name,
+        content: node.content || ""
+      };
+      setOpenTabs(prev => [...prev, newTab]);
+      setActiveTabIndex(openTabs.length);
+    }
+  }, [project, openTabs]);
+
+  /* ------------------------------- File Operations Update -------------------------------- */
+  const handleNavigateToResult = useCallback((filePath, range) => {
+    // Switch to the file
+    const node = findNode(project, filePath);
+    if (node) {
+      setSelectedPath(filePath);
+      setValue(node.content || "");
+      setLanguage(extToLanguage(node.name));
+      
+      // After editor updates, navigate to the range
+      setTimeout(() => {
+        if (editorRef.current && range) {
+          editorRef.current.setPosition({
+            lineNumber: range.startLineNumber,
+            column: range.startColumn
+          });
+          editorRef.current.revealLineInCenter(range.startLineNumber);
+          editorRef.current.setSelection(range);
+          editorRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [project]);
+  
+  /* ------------------------------- Performance Optimization -------------------------------- */
+  const handleOptimizePerformance = useCallback(() => {
+    // Clear Monaco editor caches
+    if (monacoRef.current) {
+      const models = monacoRef.current.editor.getModels();
+      models.forEach(model => {
+        // Clear markers
+        monacoRef.current.editor.setModelMarkers(model, 'optimization', []);
+      });
+    }
+    
+    // Clear project content cache for unused files
+    const unusedFiles = collectAllFiles(project).filter(file => file.path !== selectedPath);
+    if (unusedFiles.length > 20) {
+      // Clear content for files not accessed recently
+      setProject(prev => {
+        return prev.map(node => {
+          if (node.type === 'file' && node.path !== selectedPath) {
+            return { ...node, content: node.content ? '' : node.content };
+          }
+          return node;
+        });
+      });
+    }
+    
+    // Trigger garbage collection
+    scheduleGC(1000);
+    
+    toast({
+      title: "Performance Optimized",
+      description: "Memory and caches have been cleared",
+      status: "success",
+      duration: 3000,
+      isClosable: true
+    });
+  }, [project, selectedPath, toast]);
 
   /* --------------------------- Live preview building --------------------------- */
 
-  const findFileByBasename = (basename) => {
+  const findFileByBasename = useCallback((basename) => {
     const all = collectAllFiles(project);
     return all.find((f) => f.name === basename || f.path.endsWith("/" + basename) || f.path === basename);
-  };
+  }, [project]);
+
+  const allFiles = useMemo(() => collectAllFiles(project), [project]);
+  const allCssFiles = useMemo(() => allFiles.filter((f) => f.name.toLowerCase().endsWith(".css")), [allFiles]);
+  const allJsFiles = useMemo(() => allFiles.filter((f) => f.name.toLowerCase().endsWith(".js")), [allFiles]);
+  const allHtmlFiles = useMemo(() => allFiles.filter((f) => f.name.toLowerCase().endsWith(".html") || f.name.toLowerCase().endsWith(".htm")), [allFiles]);
 
   const inlineAssetsInHtml = (html) => {
     try {
@@ -520,13 +1057,14 @@ const CodeEditor = () => {
     }
   };
 
-  const buildFallbackFromJs = (jsContent) => {
+  const buildFallbackFromJs = useCallback((jsContent) => {
+    const cssContent = allCssFiles.map((f) => f.content || "").join("\n\n");
     return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8">
     <title>JS Preview</title>
-    <style>${collectAllFiles(project).filter((f) => f.name.endsWith(".css")).map((f) => f.content || "").join("\n\n")}</style>
+    <style>${cssContent}</style>
   </head>
   <body>
     <div id="root"></div>
@@ -535,11 +1073,12 @@ ${jsContent}
     </script>
   </body>
 </html>`;
-  };
+  }, [allCssFiles]);
 
   const previewSrcDoc = useMemo(() => {
     // If there's an index.html choose it and inline assets
-    const indexFile = findFiles(project, (f) => f.name.toLowerCase() === "index.html")[0] || findFiles(project, (f) => f.name.toLowerCase() === "index.htm")[0];
+    const indexFile = allHtmlFiles.find((f) => f.name.toLowerCase() === "index.html") || 
+                     allHtmlFiles.find((f) => f.name.toLowerCase() === "index.htm");
     if (indexFile && indexFile.content) {
       return inlineAssetsInHtml(indexFile.content);
     }
@@ -551,7 +1090,7 @@ ${jsContent}
     }
 
     // If there is any html file, inline the first one
-    const anyHtml = collectAllFiles(project).find((f) => f.name.toLowerCase().endsWith(".html") || f.name.toLowerCase().endsWith(".htm"));
+    const anyHtml = allHtmlFiles[0];
     if (anyHtml) return inlineAssetsInHtml(anyHtml.content || "");
 
     // If selected js -> wrap
@@ -560,12 +1099,12 @@ ${jsContent}
     }
 
     // Else if there's any js file, combine with css
-    const jsFile = collectAllFiles(project).find((f) => f.name.toLowerCase().endsWith(".js"));
+    const jsFile = allJsFiles[0];
     if (jsFile) return buildFallbackFromJs(jsFile.content || "");
 
     // No preview available
     return "";
-  }, [project, selectedPath]);
+  }, [project, selectedPath, allHtmlFiles, allJsFiles, buildFallbackFromJs]);
 
   /* --------------------------- Keyboard shortcuts -------------------------- */
 
@@ -573,220 +1112,319 @@ ${jsContent}
     const handler = (e) => {
       const metaKey = e.ctrlKey || e.metaKey;
       if (!metaKey) return;
+      
+      // Command Palette (Ctrl/Cmd+Shift+P)
+      if (e.key.toLowerCase() === "p" && e.shiftKey) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+        return;
+      }
+      
+      // Find (Ctrl/Cmd+F)
+      if (e.key.toLowerCase() === "f" && !e.shiftKey) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        return;
+      }
+      
       // Save (Ctrl/Cmd+S)
       if (e.key.toLowerCase() === "s" && !e.shiftKey) {
         e.preventDefault();
         handleSave();
+        return;
       }
+      
       // Save All (Ctrl+Shift+S)
       if (e.key.toLowerCase() === "s" && e.shiftKey) {
         e.preventDefault();
         handleSaveAll();
+        return;
       }
+      
       // Toggle preview (Ctrl/Cmd+P)
       if (e.key.toLowerCase() === "p" && !e.shiftKey) {
         e.preventDefault();
         setPreviewOpen((v) => !v);
+        return;
+      }
+      
+      // Quick Open File (Ctrl/Cmd+O)
+      if (e.key.toLowerCase() === "o" && !e.shiftKey) {
+        e.preventDefault();
+        handleOpenFolder({ importIntoSelected: false });
+        return;
+      }
+      
+      // New File (Ctrl/Cmd+N)
+      if (e.key.toLowerCase() === "n" && !e.shiftKey) {
+        e.preventDefault();
+        handleNewFile("");
+        return;
+      }
+      
+      // Toggle Terminal (Ctrl+`)
+      if (e.key === "`" && !e.shiftKey) {
+        e.preventDefault();
+        setIsTerminalOpen(prev => !prev);
+        return;
+      }
+      
+      // Toggle Output (Ctrl+Shift+O)
+      if (e.key.toLowerCase() === "o" && e.shiftKey) {
+        e.preventDefault();
+        setOutputOpen(prev => !prev);
+        return;
       }
     };
+    
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, selectedPath, value]);
+  }, [handleSave, handleSaveAll, handleOpenFolder, handleNewFile]);
 
   /* ------------------------------- Tree UI -------------------------------- */
-
-  const TreeNode = ({ node, level = 0 }) => {
-    const indent = { marginLeft: level * 8 + "px", display: "flex", alignItems: "center" };
-    if (node.type === "file") {
-      return (
-        <Box key={node.path} p="1" _hover={{ bg: "gray.700" }} borderRadius="md">
-          <HStack spacing={2} style={indent}>
-            <Text
-              fontSize="sm"
-              cursor="pointer"
-              onClick={() => handleFileSelect(node.path)}
-              color={selectedPath === node.path ? "green.200" : "gray.200"}
-              noOfLines={1}
-            >
-              {node.name}
-            </Text>
-            <Tooltip label="Rename" aria-label="rename">
-              <IconButton size="xs" aria-label="rename" icon={<EditIcon />} onClick={() => handleRename(node.path)} />
-            </Tooltip>
-            <Tooltip label="Delete" aria-label="delete">
-              <IconButton size="xs" aria-label="delete" icon={<DeleteIcon />} onClick={() => handleDelete(node.path)} />
-            </Tooltip>
-          </HStack>
-        </Box>
-      );
-    }
-    // folder
-    return (
-      <Box key={node.path} p="1">
-        <HStack spacing={2} style={indent}>
-          <Text fontWeight="bold" fontSize="sm" noOfLines={1} cursor="pointer" onClick={() => setSelectedPath(node.path)} color={selectedPath === node.path ? "green.200" : "gray.200"}>
-            {node.name}/
-          </Text>
-          <Tooltip label="New file here">
-            <IconButton size="xs" aria-label="new-file" icon={<AddIcon />} onClick={() => handleNewFile(node.path)} title="New file inside folder" />
-          </Tooltip>
-          <Tooltip label="New folder">
-            <IconButton size="xs" aria-label="rename" icon={<RepeatIcon />} onClick={() => handleNewFolder(node.path)} title="New folder inside" />
-          </Tooltip>
-          <Tooltip label="Rename">
-            <IconButton size="xs" aria-label="rename" icon={<EditIcon />} onClick={() => handleRename(node.path)} title="Rename folder" />
-          </Tooltip>
-          <Tooltip label="Delete folder">
-            <IconButton size="xs" aria-label="delete-folder" icon={<DeleteIcon />} onClick={() => handleDelete(node.path)} title="Delete folder" />
-          </Tooltip>
-        </HStack>
-        <Box ml="3">
-          {(node.children || []).map((c) => (
-            <TreeNode key={c.path} node={c} level={level + 1} />
-          ))}
-        </Box>
-      </Box>
-    );
-  };
+  // Using VirtualizedTree component for better performance
 
   /* ----------------------------- Render UI ------------------------------ */
 
   return (
-    <Box p={4} height="100vh" bg="gray.900" color="gray.100">
-      <HStack spacing={4} align="start" height="100%">
-        {/* File explorer */}
-        <Box w="18%" borderRadius="md" p={3} bg="gray.800" minH="85vh" overflowY="auto">
-          <HStack justify="space-between" mb={3}>
-            <Heading size="sm">Project</Heading>
-            <Menu>
-              <MenuButton as={Button} size="sm">
-                ⋮
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={() => handleNewFile("")}>New File (root)</MenuItem>
-                <MenuItem onClick={() => handleNewFolder("")}>New Folder (root)</MenuItem>
-                <MenuItem onClick={() => handleOpenFolder({ importIntoSelected: false })}>Open Folder (replace)</MenuItem>
-                <MenuItem onClick={() => handleOpenFolder({ importIntoSelected: true })}>Import Folder into selected</MenuItem>
-                <MenuItem onClick={handleSaveAll}>Save All</MenuItem>
-              </MenuList>
-            </Menu>
-          </HStack>
+    <div className="h-screen bg-monaco-bg text-monaco-text flex flex-col">
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onExecuteCommand={executeCommand}
+      />
 
-          <Divider mb={2} />
+      {/* Advanced Search */}
+      <AdvancedSearch
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        editorRef={editorRef}
+        project={project}
+        onNavigateToResult={handleNavigateToResult}
+      />
 
-          <VStack align="stretch" spacing={1}>
-            {project.length ? project.map((node) => <TreeNode key={node.path} node={node} level={0} />) : <Text color="gray.400">Project is empty — open or create files.</Text>}
-          </VStack>
-
-          <Divider mt={3} />
-
-          <HStack mt={3}>
-            <Button size="sm" onClick={() => handleNewFile("")}>
-              New File
-            </Button>
-            <Button size="sm" onClick={() => handleNewFolder("")}>
-              New Folder
-            </Button>
-            <Tooltip label="Open folder (replace)">
-              <IconButton size="sm" aria-label="open-folder" title="Open folder" onClick={() => handleOpenFolder({ importIntoSelected: false })} icon={<ExternalLinkIcon />} />
-            </Tooltip>
-            <Tooltip label="Import folder into selected">
-              <IconButton size="sm" aria-label="import-folder" title="Import folder into selected" onClick={() => handleOpenFolder({ importIntoSelected: true })} icon={<UnlockIcon />} />
-            </Tooltip>
-          </HStack>
-        </Box>
-
-        {/* Editor area */}
-        <Box w="50%" bg="gray.800" borderRadius="md" p={3} minH="85vh">
-          <HStack justify="space-between" mb={2}>
-            <LanguageSelector language={language} onSelect={onSelectLanguage} />
-            <HStack spacing={2}>
-              <Button size="sm" onClick={handleSave}>
-                Save
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!selectedPath) return toast({ title: "No file selected", status: "warning", isClosable: true });
-                  const parent = selectedPath.includes("/") ? selectedPath.replace(/\/[^/]*$/, "") : "";
-                  handleNewFile(parent);
-                }}
-              >
-                New
-              </Button>
-              <IconButton size="sm" aria-label="save-all" title="Save All" onClick={handleSaveAll} icon={<RepeatIcon />} />
-              <IconButton size="sm" aria-label="toggle-preview" title="Toggle preview" onClick={() => setPreviewOpen((v) => !v)} icon={<ViewIcon />} />
-            </HStack>
-          </HStack>
-
-          <Editor
-            options={{
-              minimap: { enabled: false },
-              fontSize: 13,
-              wordWrap: "on",
-            }}
-            height="75vh"
-            theme="vs-dark"
-            language={language}
-            value={value}
-            onMount={onMount}
-            onChange={(val) => handleEditorChange(val)}
+      {/* Top Toolbar - Made responsive */}
+      <div className="h-12 bg-monaco-sidebar border-b border-monaco-border flex items-center justify-between px-4 flex-wrap gap-2">
+        <div className="flex items-center space-x-4 flex-wrap">
+          <h1 className="text-lg font-semibold text-monaco-text">Codexa IDE</h1>
+          <LanguageSelector language={language} onSelect={onSelectLanguage} />
+        </div>
+        <div className="flex items-center flex-wrap gap-1">
+          <Tooltip label="Command Palette (Ctrl+Shift+P)">
+            <IconButton
+              size="sm"
+              variant="ghost"
+              icon={<span className="text-lg">⌘</span>}
+              onClick={() => setIsCommandPaletteOpen(true)}
+              aria-label="command-palette"
+            />
+          </Tooltip>
+          <Tooltip label="Search (Ctrl+F)">
+            <IconButton 
+              size="sm" 
+              variant="ghost"
+              icon={<SearchIcon />} 
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="search"
+            />
+          </Tooltip>
+          <Button size="sm" onClick={handleSave} variant="primary" className="hidden sm:inline-block">
+            Save
+          </Button>
+          <Button size="sm" onClick={handleSaveAll} variant="secondary" className="hidden sm:inline-block">
+            Save All
+          </Button>
+          <Tooltip label="Toggle Terminal (Ctrl+`)">
+            <IconButton 
+              size="sm" 
+              variant={isTerminalOpen ? "primary" : "ghost"}
+              icon={<span className="text-lg">⌨️</span>} 
+              onClick={() => setIsTerminalOpen((v) => !v)}
+              aria-label="toggle-terminal"
+            />
+          </Tooltip>
+          <PerformanceDashboard
+            memoryMonitor={memoryMonitor.current}
+            editorRef={editorRef}
+            project={project}
+            onOptimize={handleOptimizePerformance}
           />
-        </Box>
+        </div>
+      </div>
 
-        {/* Output + Preview */}
-        <Box w="32%" bg="gray.800" borderRadius="md" p={3} minH="85vh">
-          <Heading size="sm" mb={2}>
-            Output
-          </Heading>
+      {/* Main Content Area - Made responsive */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Section - Editor Area with Sidebar and Right Panel */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          {/* File Explorer Sidebar - Made responsive */}
+          <div className="w-full md:w-80 bg-monaco-sidebar border-r border-monaco-border flex flex-col min-h-0">
+            {/* File Explorer Header */}
+            <div className="h-12 flex items-center px-4 border-b border-monaco-border flex-shrink-0 bg-monaco-sidebar">
+              <h3 className="text-sm font-semibold text-monaco-text">File Explorer</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin min-h-0">
+              <VirtualizedTree
+                project={project}
+                selectedPath={selectedPath}
+                onFileSelect={handleFileSelect}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onNewFile={handleNewFile}
+                onNewFolder={handleNewFolder}
+              />
+            </div>
+          </div>
 
-          <Box mb={3}>
-            {/* Output component unchanged — it receives editorRef and language */}
-            <Output editorRef={editorRef} language={language} />
-          </Box>
+          {/* Editor Area - Responsive width */}
+          <div className="flex-1 flex flex-col bg-monaco-bg min-h-0">
+            {/* TabManager */}
+            <div className="flex-shrink-0">
+              <TabManager
+                tabs={openTabs}
+                activeTabIndex={activeTabIndex}
+                onTabChange={handleTabChange}
+                onTabClose={handleTabClose}
+                onNewTab={handleNewTab}
+              />
+            </div>
 
-          <Divider mb={3} />
+            {/* Monaco Editor Container - Responsive height */}
+            <div className={`flex-1 flex flex-col min-h-0 ${isTerminalOpen ? 'h-1/2' : 'h-full'}`}>
+              <Editor
+                beforeMount={beforeMount}
+                onMount={onMount}
+                options={getEditorOptions(language)}
+                height="100%"
+                theme="vscode-dark-optimized"
+                language={language}
+                value={value}
+                onChange={handleEditorChange}
+                loading={<div className="p-4 flex items-center justify-center h-full"><span className="text-monaco-text">Loading Monaco Editor...</span></div>}
+              />
+            </div>
 
-          <HStack justify="space-between" mb={2}>
-            <Heading size="sm">Live Preview</Heading>
-            <Text fontSize="xs" color="gray.300">
-              {previewOpen ? "on" : "off"}
-            </Text>
-          </HStack>
-
-          <Box borderRadius="md" border="1px solid" borderColor="gray.700" h="52vh" overflow="hidden" bg="black">
-            {previewOpen ? (
-              (() => {
-                const srcDoc = previewSrcDoc;
-                if (!srcDoc) {
-                  return (
-                    <Box p={3} color="gray.300">
-                      <Text>No preview content available for this project.</Text>
-                      <Text fontSize="sm" color="gray.400">
-                        Add an index.html or a script.js file to preview, or open a folder containing a web project.
-                      </Text>
-                    </Box>
-                  );
-                }
-                return (
-                  <iframe
-                    title="live-preview"
-                    srcDoc={srcDoc}
-                    style={{ width: "100%", height: "100%", border: 0 }}
-                    sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-scripts allow-same-origin"
-                  />
-                );
-              })()
-            ) : (
-              <Box p={4} color="gray.400">
-                <Text>Preview is hidden. Press Ctrl/Cmd+P or click the eye button to enable.</Text>
-              </Box>
+            {/* Integrated Terminal - Responsive */}
+            {isTerminalOpen && (
+              <div className="h-1/3 md:h-1/2 border-t border-monaco-border flex-shrink-0">
+                <IntegratedTerminal />
+              </div>
             )}
-          </Box>
-        </Box>
-      </HStack>
-    </Box>
+          </div>
+        </div>
+
+        {/* Bottom Panel - Output & Preview - Made responsive */}
+        {bottomPanelOpen && (
+          <div className="h-64 md:h-80 border-t border-monaco-border bg-monaco-sidebar flex flex-col">
+            {/* Bottom Panel Header */}
+            <div className="h-12 flex items-center justify-between px-4 border-b border-monaco-border flex-shrink-0">
+              <h3 className="text-sm font-semibold text-monaco-text">Output & Preview</h3>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-monaco-text-secondary hidden sm:inline">
+                  Output: {outputOpen ? "on" : "off"} | Preview: {previewOpen ? "on" : "off"}
+                </span>
+                <Tooltip label="Toggle Output (Ctrl+Shift+O)">
+                  <IconButton 
+                    size="sm" 
+                    variant={outputOpen ? "primary" : "ghost"}
+                    icon={<span className="text-lg">📋</span>}
+                    onClick={() => setOutputOpen((v) => !v)}
+                    aria-label="toggle-output"
+                  />
+                </Tooltip>
+                <Tooltip label="Toggle Preview">
+                  <IconButton 
+                    size="sm" 
+                    variant={previewOpen ? "primary" : "ghost"}
+                    icon={<ViewIcon />}
+                    onClick={() => setPreviewOpen((v) => !v)}
+                    aria-label="toggle-preview"
+                  />
+                </Tooltip>
+                <Tooltip label="Collapse Panel">
+                  <IconButton 
+                    size="sm" 
+                    variant="ghost"
+                    icon={<span className="text-lg">—</span>}
+                    onClick={() => setBottomPanelOpen(false)}
+                    aria-label="collapse-panel"
+                  />
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Bottom Panel Content - Responsive layout */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              {/* Output Section - Responsive */}
+              {outputOpen && (
+                <div className={`border-r border-monaco-border flex flex-col min-h-0 ${previewOpen ? 'md:w-1/2 h-1/2 md:h-full' : 'flex-1'}`}>
+                  <div className="h-10 bg-monaco-bg border-b border-monaco-border flex items-center px-4 flex-shrink-0">
+                    <h4 className="text-xs font-medium text-monaco-text uppercase tracking-wider">Console</h4>
+                  </div>
+                  <div className="flex-1 overflow-y-auto scrollbar-thin p-4 min-h-0">
+                    <Output editorRef={editorRef} language={language} />
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Section - Responsive */}
+              {previewOpen && (
+                <div className={`flex flex-col min-h-0 ${outputOpen ? 'md:flex-1 h-1/2 md:h-full' : 'flex-1'}`}>
+                  <div className="h-10 bg-monaco-bg border-b border-monaco-border flex items-center px-4 flex-shrink-0">
+                    <h4 className="text-xs font-medium text-monaco-text uppercase tracking-wider">Live Preview</h4>
+                  </div>
+                  <div className="flex-1 bg-white min-h-0">
+                    {(() => {
+                      const srcDoc = previewSrcDoc;
+                      if (!srcDoc) {
+                        return (
+                          <div className="p-4 h-full flex items-center justify-center text-center">
+                            <div className="text-monaco-text-secondary">
+                              <p className="mb-2">No preview content available</p>
+                              <p className="text-xs">Add HTML, CSS, or JS files to preview</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <iframe
+                          title="live-preview"
+                          srcDoc={srcDoc}
+                          className="w-full h-full border-0"
+                          sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-scripts allow-same-origin"
+                        />
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State when both are off */}
+              {!outputOpen && !previewOpen && (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center text-monaco-text-secondary">
+                    <p className="mb-2">Output & Preview panels are hidden</p>
+                    <p className="text-xs">Use the toggle buttons above to show them</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Panel Collapsed State - Responsive */}
+        {!bottomPanelOpen && (
+          <div className="h-8 border-t border-monaco-border bg-monaco-sidebar flex items-center justify-center cursor-pointer hover:bg-monaco-hover transition-colors" onClick={() => setBottomPanelOpen(true)}>
+            <Tooltip label="Expand Output & Preview Panel">
+              <span className="text-sm text-monaco-text-secondary flex items-center space-x-2">
+                <span>▲</span>
+                <span className="hidden sm:inline">Output & Preview</span>
+              </span>
+            </Tooltip>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

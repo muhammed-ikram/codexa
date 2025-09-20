@@ -1,68 +1,81 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* Custom scrollbar styles */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
   }
-  a:hover {
-    color: #747bff;
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
-  button {
-    background-color: #f9f9f9;
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #2d3748;
+  }
+  
+  /* Monaco Editor specific styles */
+  .monaco-editor-container {
+    @apply bg-monaco-bg border border-monaco-border rounded-lg overflow-hidden;
+  }
+  
+  .monaco-toolbar {
+    @apply bg-monaco-sidebar border-b border-monaco-border px-4 py-2;
+  }
+  
+  .monaco-sidebar {
+    @apply bg-monaco-sidebar border-r border-monaco-border;
+  }
+  
+  .monaco-file-tree {
+    @apply text-monaco-text text-sm;
+  }
+  
+  .monaco-file-tree-item {
+    @apply px-2 py-1 hover:bg-monaco-hover cursor-pointer rounded transition-colors;
+  }
+  
+  .monaco-file-tree-item.selected {
+    @apply bg-monaco-selection text-white;
+  }
+  
+  .monaco-button {
+    @apply px-3 py-1.5 rounded text-sm font-medium transition-all;
+  }
+  
+  .monaco-button-primary {
+    @apply bg-monaco-accent hover:bg-blue-600 text-white;
+  }
+  
+  .monaco-button-secondary {
+    @apply bg-gray-600 hover:bg-gray-500 text-white;
+  }
+  
+  .monaco-button-ghost {
+    @apply bg-transparent hover:bg-monaco-hover text-monaco-text;
+  }
+  
+  .monaco-input {
+    @apply bg-monaco-bg border border-monaco-border rounded px-3 py-2 text-monaco-text placeholder-monaco-text-secondary focus:border-monaco-accent focus:outline-none;
+  }
+  
+  .monaco-modal {
+    @apply bg-monaco-sidebar border border-monaco-border rounded-lg shadow-xl;
+  }
+  
+  .monaco-tooltip {
+    @apply bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg;
   }
 }
