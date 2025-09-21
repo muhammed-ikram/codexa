@@ -1,9 +1,14 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import api from '../utils/api';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const userMenuRef = useRef(null);
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: (
@@ -34,8 +39,56 @@ const Sidebar = () => {
     )},
   ];
 
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+      // Redirect to login page
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      // Still redirect to login page even if logout fails
+      navigate("/login");
+    }
+  };
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await api.get("/auth/profile");
+        setUserData(response.data.user);
+      } catch (err) {
+        console.error("Failed to fetch user data:", err);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Get the first letter of the username or default to 'U'
+  const getUserInitial = () => {
+    if (userData && userData.username) {
+      return userData.username.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
   return (
-    <div className="bg-gray-900 text-white w-16 min-h-screen flex flex-col items-center py-6 border-r border-gray-800">
+    <div className="bg-gray-900 text-white w-16 min-h-screen flex flex-col items-center py-6 border-r border-gray-800 relative">
       {/* Logo */}
       <div className="mb-10">
         <div className="flex flex-col items-center">
@@ -69,10 +122,30 @@ const Sidebar = () => {
       </nav>
 
       {/* User Profile */}
-      <div className="mt-auto">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center transform transition-transform duration-300 hover:scale-105">
-          <span className="font-bold text-sm">U</span>
+      <div className="mt-auto relative" ref={userMenuRef}>
+        <div 
+          className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center transform transition-transform duration-300 hover:scale-105 cursor-pointer"
+          onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+        >
+          <span className="font-bold text-sm">{getUserInitial()}</span>
         </div>
+        
+        {/* User Menu Dropdown */}
+        {isUserMenuOpen && (
+          <div className="absolute bottom-full left-1/2 mb-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 animate-fade-in">
+            <div className="py-1">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
