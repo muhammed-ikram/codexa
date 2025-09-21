@@ -132,7 +132,7 @@ const Sidebar = () => {
         
         {/* User Menu Dropdown */}
         {isUserMenuOpen && (
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 animate-fade-in">
+          <div className="absolute bottom-full left-1/2 mb-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 animate-fade-in">
             <div className="py-1">
               <button
                 onClick={handleLogout}
