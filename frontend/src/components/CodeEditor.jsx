@@ -1106,6 +1106,19 @@ ${jsContent}
     return "";
   }, [project, selectedPath, allHtmlFiles, allJsFiles, buildFallbackFromJs]);
 
+  // Function to open standalone preview
+  const openStandalonePreview = () => {
+    // Save the preview content to localStorage
+    try {
+      localStorage.setItem('ide_preview_content', previewSrcDoc);
+    } catch (e) {
+      console.warn('Failed to save preview content to localStorage:', e);
+    }
+    
+    // Navigate to the preview page
+    window.open(`/preview`, '_blank');
+  };
+
   /* --------------------------- Keyboard shortcuts -------------------------- */
 
   useEffect(() => {
@@ -1175,11 +1188,18 @@ ${jsContent}
         setOutputOpen(prev => !prev);
         return;
       }
+      
+      // Open Standalone Preview (Ctrl/Cmd+Shift+P)
+      if (e.key.toLowerCase() === "v" && e.shiftKey) {
+        e.preventDefault();
+        openStandalonePreview();
+        return;
+      }
     };
     
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSave, handleSaveAll, handleOpenFolder, handleNewFile]);
+  }, [handleSave, handleSaveAll, handleOpenFolder, handleNewFile, openStandalonePreview]);
 
   /* ------------------------------- Tree UI -------------------------------- */
   // Using VirtualizedTree component for better performance
@@ -1339,6 +1359,15 @@ ${jsContent}
                     icon={<ViewIcon />}
                     onClick={() => setPreviewOpen((v) => !v)}
                     aria-label="toggle-preview"
+                  />
+                </Tooltip>
+                <Tooltip label="Standalone Preview (Ctrl+Shift+V)">
+                  <IconButton 
+                    size="sm" 
+                    variant="ghost"
+                    icon={<ExternalLinkIcon />}
+                    onClick={openStandalonePreview}
+                    aria-label="standalone-preview"
                   />
                 </Tooltip>
                 <Tooltip label="Collapse Panel">

@@ -1,7 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api'; // Import the api utility
 
 // Auth context - you would replace this with your actual auth context
 const AuthContext = React.createContext({ user: null });
+
+
 
 // ProjectCard component
 const ProjectCard = ({ project }) => {
@@ -26,23 +30,23 @@ const ProjectCard = ({ project }) => {
   };
 
   return (
-    <div className="bg-monaco-sidebar border border-monaco-border rounded-lg p-6 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10">
-      <div className="flex items-start justify-between mb-4">
-        <h3 className="text-lg font-semibold text-monaco-text truncate pr-2">
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in">
+      <div className="flex items-start justify-between mb-3">
+        <h3 className="text-lg font-semibold text-white truncate pr-2">
           {project.name}
         </h3>
-        <span className="text-xs text-monaco-text-secondary bg-monaco-bg px-2 py-1 rounded">
+        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded-full">
           {project.progress || 0}%
         </span>
       </div>
       
       {/* Tech Stack */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-1 mb-4">
         {project.techStack?.map((tech, index) => (
           <span
             key={index}
             className={`text-xs px-2 py-1 rounded-full text-white ${
-              techColors[tech] || 'bg-gray-500'
+              techColors[tech] || 'bg-gray-600'
             }`}
           >
             {tech}
@@ -52,13 +56,13 @@ const ProjectCard = ({ project }) => {
       
       {/* Progress Bar */}
       <div className="w-full">
-        <div className="flex justify-between text-xs text-monaco-text-secondary mb-1">
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>Progress</span>
           <span>{project.progress || 0}%</span>
         </div>
-        <div className="w-full bg-monaco-bg rounded-full h-2">
+        <div className="w-full bg-gray-700 rounded-full h-1.5">
           <div
-            className={`h-2 rounded-full transition-all duration-300 ${
+            className={`h-1.5 rounded-full transition-all duration-300 ${
               project.progress === 100
                 ? 'bg-green-500'
                 : project.progress >= 70
@@ -71,60 +75,70 @@ const ProjectCard = ({ project }) => {
           ></div>
         </div>
       </div>
-      
-      {/* Action Buttons */}
-      <div className="flex gap-2 mt-4">
-        <button className="flex-1 text-xs bg-monaco-bg hover:bg-monaco-hover text-monaco-text border border-monaco-border rounded px-3 py-2 transition-colors">
-          Open
-        </button>
-        <button className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded px-3 py-2 transition-colors">
-          Continue
-        </button>
-      </div>
     </div>
   );
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [promptText, setPromptText] = useState('');
-  const [projects, setProjects] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [projects, setProjects] = useState([
+    {
+      id: '1',
+      name: 'E-commerce Platform',
+      techStack: ['React', 'Node.js', 'MongoDB'],
+      progress: 75
+    },
+    {
+      id: '2',
+      name: 'Task Management App',
+      techStack: ['Vue.js', 'Express', 'PostgreSQL'],
+      progress: 40
+    },
+    {
+      id: '3',
+      name: 'Portfolio Website',
+      techStack: ['Next.js', 'Tailwind CSS'],
+      progress: 90
+    }
+  ]);
+  const [recentActivity, setRecentActivity] = useState([
+    { action: 'Updated', project: 'E-commerce Platform', time: '2 hours ago' },
+    { action: 'Created', project: 'Task Management App', time: '1 day ago' },
+    { action: 'Completed', project: 'Portfolio Website', time: '3 days ago' }
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null); // State to store user data
+  const [error, setError] = useState(''); // State to handle errors
   
   // Get user from auth context (you would replace this with your actual auth context)
   const authContext = useContext(AuthContext);
-  const username = authContext?.user?.name || 'Developer';
+  // Use API data if available, otherwise fallback to context
+  const username = user?.username || authContext?.user?.name || 'Developer';
 
-  // Fetch projects from backend
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      // Replace this with your actual API call
-      // const response = await yourBackendAPI.getProjects();
-      // setProjects(response.data);
-      
-      // For now, we'll set projects to empty array to indicate no data
-      setProjects([]);
-      setRecentActivity([]);
-    } catch (err) {
-      setError('Failed to load projects');
-      console.error('Error fetching projects:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch user profile data
   useEffect(() => {
-    fetchProjects();
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/auth/profile');
+        setUser(response.data.user);
+        setError('');
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        setError('Failed to load user profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
   }, []);
 
   const handleGenerateProject = () => {
-    console.log('Generating project with prompt:', promptText);
-    // Here you would implement the actual project generation logic
     if (promptText.trim()) {
-      console.log(`User wants to build: ${promptText}`);
-      // You could navigate to a project setup page or open a modal
+      // Navigate to projects page to create new project
+      navigate('/projects');
     }
   };
 
@@ -134,51 +148,70 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-monaco-bg text-monaco-text flex items-center justify-center">
-        <div className="flex items-center space-x-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-          <span className="text-lg">Loading dashboard...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-monaco-bg text-monaco-text flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold mb-2">Error Loading Dashboard</h1>
-          <p className="text-monaco-text-secondary mb-4">{error}</p>
-          <button
-            onClick={fetchProjects}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-monaco-bg text-monaco-text">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
       {/* Main Container */}
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-6 max-w-7xl mx-auto">
         {/* Main Heading */}
-        <h1 className="text-4xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Welcome to Codex, {username}!
-        </h1>
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-2xl font-bold">
+            Welcome back, <span className="text-blue-400">{username}</span>
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">Here's what's happening with your projects today</p>
+        </div>
+
+        {/* Stats Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 animate-slide-up">
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-blue-500/10 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Total Projects</p>
+                <p className="text-2xl font-bold">12</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 animate-slide-up">
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-green-500/10 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Completed</p>
+                <p className="text-2xl font-bold">5</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 animate-slide-up">
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-yellow-500/10 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">In Progress</p>
+                <p className="text-2xl font-bold">7</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Action Zone */}
-        <div className="mb-12 bg-monaco-sidebar rounded-2xl p-8 border border-monaco-border">
-          <h2 className="text-2xl font-semibold mb-6 text-center text-monaco-text">
-            What would you like to build today?
+        <div className="mb-8 bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 animate-slide-up">
+          <h2 className="text-lg font-semibold mb-4 text-white">
+            Start a new project
           </h2>
           
-          <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1">
               <input
                 type="text"
@@ -186,109 +219,70 @@ const Dashboard = () => {
                 onChange={(e) => setPromptText(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Describe the project you want to build..."
-                className="w-full p-4 bg-monaco-bg border border-blue-500 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-monaco-text placeholder-monaco-text-secondary transition-all duration-200 text-lg"
+                className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400 transition-all duration-200 text-sm"
               />
             </div>
             
             <button
               onClick={handleGenerateProject}
               disabled={!promptText.trim()}
-              className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:shadow-blue-500/50 transition-all duration-200 transform hover:scale-105 whitespace-nowrap"
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-[1.02] ${
+                !promptText.trim()
+                  ? "bg-gray-600 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg hover:shadow-xl"
+              }`}
             >
-              <span className="flex items-center gap-2">
-                <span>🚀</span>
-                Generate Project
-              </span>
+              Generate Project
             </button>
-          </div>
-          
-          {/* Quick Suggestions - Made dynamic */}
-          <div className="mt-6">
-            <p className="text-sm text-monaco-text-secondary mb-3">Quick suggestions:</p>
-            <div className="flex flex-wrap gap-2">
-              {[] /* Empty array to remove static suggestions */}
-            </div>
           </div>
         </div>
 
         {/* Project Grid */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-monaco-text">My Projects</h2>
-            <button className="text-sm bg-monaco-sidebar hover:bg-monaco-hover text-monaco-text border border-monaco-border rounded-lg px-4 py-2 transition-colors">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Recent Projects</h2>
+            <button 
+              onClick={() => navigate('/projects')}
+              className="text-sm text-blue-400 hover:text-blue-300 flex items-center transition-colors"
+            >
               View All
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
           </div>
           
-          {projects.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">📁</div>
-              <h3 className="text-xl font-semibold mb-2">No projects yet</h3>
-              <p className="text-monaco-text-secondary mb-6">Create your first project to get started</p>
-              <button
-                onClick={() => document.querySelector('input[type="text"]').focus()}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-              >
-                Create Project
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Stats Section */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-monaco-sidebar border border-monaco-border rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-blue-400 mb-2">
-              {projects.length}
-            </div>
-            <div className="text-monaco-text-secondary">Total Projects</div>
-          </div>
-          
-          <div className="bg-monaco-sidebar border border-monaco-border rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-green-400 mb-2">
-              {projects.filter(p => p.progress === 100).length}
-            </div>
-            <div className="text-monaco-text-secondary">Completed</div>
-          </div>
-          
-          <div className="bg-monaco-sidebar border border-monaco-border rounded-lg p-6 text-center">
-            <div className="text-3xl font-bold text-yellow-400 mb-2">
-              {projects.filter(p => p.progress > 0 && p.progress < 100).length}
-            </div>
-            <div className="text-monaco-text-secondary">In Progress</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
           </div>
         </div>
 
         {/* Recent Activity */}
-        <div className="mt-12">
-          <h3 className="text-xl font-semibold text-monaco-text mb-4">Recent Activity</h3>
-          <div className="bg-monaco-sidebar border border-monaco-border rounded-lg p-6">
+        <div className="animate-slide-up">
+          <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700">
             <div className="space-y-3">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 border-b border-monaco-border last:border-b-0">
-                    <div>
-                      <span className="text-monaco-text">{activity.action}</span>
-                      <span className="text-blue-400 ml-2">{activity.project}</span>
+              {recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center mr-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
                     </div>
-                    <span className="text-xs text-monaco-text-secondary">{activity.time}</span>
+                    <div>
+                      <span className="text-white text-sm">{activity.action}</span>
+                      <span className="text-blue-400 text-sm font-medium ml-1">{activity.project}</span>
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-monaco-text-secondary">
-                  No recent activity
+                  <span className="text-xs text-gray-400">{activity.time}</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
