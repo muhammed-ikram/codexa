@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { verifyToken } = require("../middlewares/authMiddleware");
+const  sendWelcomeEmail  = require("../middlewares/sendMail");
 
 const router = express.Router();
 
@@ -16,8 +17,28 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username,email, password: hashedPassword, role });
     await newUser.save();
+    sendWelcomeEmail(email, username);
 
-    res.status(201).json("User registered successfully");
+    const token = jwt.sign(
+      { id: newUser._id, username: newUser.username, role: newUser.role },
+      "yourSecretKey",
+      { expiresIn: "1d" }
+    );
+
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: false, // change to true in production with HTTPS
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .json({ 
+        message: "User registered successfully",
+        user: { id: newUser._id, username: newUser.username, role: newUser.role },
+        token: token
+      });
+
+    // res.status(201).json("User registered successfully");
   } catch (err) {
     res.status(500).json("Server error");
   }
