@@ -16,7 +16,7 @@ const MilestoneList = ({ milestones = [] }) => {
       <h3 className="text-lg font-semibold mb-4 text-purple-300">Project Milestones</h3>
       {milestones.length === 0 ? (
         <div className="text-gray-400 text-center py-8 rounded-xl border-2 border-dashed border-gray-700">
-          No milestones available for this project
+          Yes milestones available for this project
         </div>
       ) : (
         <div className="space-y-3">
