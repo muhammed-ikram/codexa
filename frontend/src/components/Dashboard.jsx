@@ -5,8 +5,6 @@ import api from '../utils/api'; // Import the api utility
 // Auth context - you would replace this with your actual auth context
 const AuthContext = React.createContext({ user: null });
 
-
-
 // ProjectCard component
 const ProjectCard = ({ project }) => {
   // Tech stack color mapping
@@ -30,12 +28,12 @@ const ProjectCard = ({ project }) => {
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in">
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in transform hover:scale-[1.02]">
       <div className="flex items-start justify-between mb-3">
-        <h3 className="text-lg font-semibold text-white truncate pr-2">
+        <h3 className="text-lg font-semibold text-white truncate pr-2 transition-colors duration-300 hover:text-blue-400">
           {project.name}
         </h3>
-        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded-full">
+        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded-full transition-all duration-300 hover:bg-gray-600">
           {project.progress || 0}%
         </span>
       </div>
@@ -45,7 +43,7 @@ const ProjectCard = ({ project }) => {
         {project.techStack?.map((tech, index) => (
           <span
             key={index}
-            className={`text-xs px-2 py-1 rounded-full text-white ${
+            className={`text-xs px-2 py-1 rounded-full text-white transition-all duration-300 hover:scale-105 ${
               techColors[tech] || 'bg-gray-600'
             }`}
           >
@@ -166,7 +164,7 @@ const Dashboard = () => {
             <div className="flex items-center">
               <div className="p-3 rounded-lg bg-blue-500/10 mr-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
               <div>

@@ -100,22 +100,22 @@ const ProjectsPage = () => {
               <div
                 key={project.id}
                 onClick={() => handleProjectClick(project.id)}
-                className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in"
+                className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in transform hover:scale-[1.02]"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-white">{project.name}</h3>
-                  <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full">
+                  <h3 className="text-xl font-bold text-white transition-colors duration-300 hover:text-blue-400">{project.name}</h3>
+                  <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full transition-all duration-300 hover:bg-gray-600">
                     {project.progress}%
                   </span>
                 </div>
                 
-                <p className="text-gray-400 mb-5">{project.description}</p>
+                <p className="text-gray-400 mb-5 transition-colors duration-300 hover:text-gray-300">{project.description}</p>
                 
                 <div className="flex flex-wrap gap-2 mb-5">
                   {project.techStack.map((tech, index) => (
                     <span
                       key={index}
-                      className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded"
+                      className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded transition-all duration-300 hover:bg-gray-600 hover:scale-105"
                     >
                       {tech}
                     </span>
@@ -123,10 +123,10 @@ const ProjectsPage = () => {
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Last updated: {project.lastUpdated}</span>
+                  <span className="text-xs text-gray-500 transition-colors duration-300 hover:text-gray-400">Last updated: {project.lastUpdated}</span>
                   <div className="w-24 bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-blue-500 h-2 rounded-full"
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-in-out"
                       style={{ width: `${project.progress}%` }}
                     ></div>
                   </div>
@@ -137,11 +137,12 @@ const ProjectsPage = () => {
         )}
       </div>
       {/* Footer */}
-      <div className="mt-16 text-center text-gray-500 text-sm">
-        <p className="mb-2">
-          <span className="font-medium text-gray-400 italic">CodeXA - for the engineers, by the engineers</span>
-        </p>
-        <p>© 2025 CodeXA. All rights reserved.</p>
+      <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
+        <div className="flex items-center justify-center">
+          <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+          <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
+        </div>
+        <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>
       </div>
     </div>
   );

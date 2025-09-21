@@ -4,26 +4,26 @@ import React, { useState, useEffect } from 'react';
 const SkillReport = ({ skillsData }) => {
   if (!skillsData || skillsData.length === 0) {
     return (
-      <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 text-center border border-gray-700 animate-fade-in">
-        <div className="text-3xl mb-3">📊</div>
-        <p className="text-gray-400 text-sm">No skill data available</p>
+      <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 text-center border border-gray-700 animate-fade-in transition-all duration-300 hover:border-gray-600">
+        <div className="text-3xl mb-3 transition-transform duration-300 hover:scale-110">📊</div>
+        <p className="text-gray-400 text-sm transition-colors duration-300 hover:text-gray-300">No skill data available</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 animate-fade-in">
-      <h3 className="text-lg font-semibold mb-4 text-white">Skill Proficiency</h3>
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 animate-fade-in transition-all duration-300 hover:border-gray-600">
+      <h3 className="text-lg font-semibold mb-4 text-white transition-colors duration-300 hover:text-blue-400">Skill Proficiency</h3>
       <div className="space-y-4">
         {skillsData.map((skill, index) => (
-          <div key={index}>
+          <div key={index} className="transition-all duration-300 hover:bg-gray-700/50 p-2 rounded">
             <div className="flex justify-between mb-1">
-              <span className="text-sm text-white">{skill.name}</span>
-              <span className="text-sm text-blue-400">{skill.proficiency}%</span>
+              <span className="text-sm text-white transition-colors duration-300 hover:text-blue-400">{skill.name}</span>
+              <span className="text-sm text-blue-400 transition-colors duration-300 hover:text-blue-300">{skill.proficiency}%</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
               <div
-                className="bg-blue-500 h-2 rounded-full"
+                className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-in-out"
                 style={{ width: `${skill.proficiency}%` }}
               ></div>
             </div>
@@ -80,8 +80,8 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 flex flex-col h-96 border border-gray-700 animate-fade-in">
-      <h3 className="text-lg font-semibold mb-4 text-white">Mock Interview</h3>
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 flex flex-col h-96 border border-gray-700 animate-fade-in transition-all duration-300 hover:border-gray-600">
+      <h3 className="text-lg font-semibold mb-4 text-white transition-colors duration-300 hover:text-blue-400">Mock Interview</h3>
       
       {/* Chat messages area */}
       <div className="flex-1 overflow-y-auto mb-4 space-y-3 pr-2">
@@ -91,14 +91,14 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+              className={`max-w-xs px-3 py-2 rounded-lg text-sm transition-all duration-300 ${
                 message.sender === 'user'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                  : 'bg-gray-700 text-gray-100'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white transform hover:scale-[1.02]'
+                  : 'bg-gray-700 text-gray-100 transition-colors duration-300 hover:bg-gray-600'
               }`}
             >
-              <p>{message.content}</p>
-              <p className="text-xs mt-1 opacity-70">{message.timestamp}</p>
+              <p className="transition-colors duration-300 hover:text-white">{message.content}</p>
+              <p className="text-xs mt-1 opacity-70 transition-opacity duration-300 hover:opacity-100">{message.timestamp}</p>
             </div>
           </div>
         ))}
@@ -111,7 +111,7 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
           placeholder="Type your answer..."
-          className="flex-1 bg-gray-700/50 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="flex-1 bg-gray-700/50 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-gray-500"
           disabled={isGenerating}
         />
         <button
@@ -146,24 +146,24 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
 // JobCard Component
 const JobCard = ({ job }) => {
   return (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 mb-4 border border-gray-700 animate-fade-in">
+    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 mb-4 border border-gray-700 animate-fade-in transition-all duration-300 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/10 transform hover:scale-[1.01]">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-semibold text-white">{job.title}</h3>
-          <p className="text-gray-400 text-sm mt-1">{job.company} • {job.location}</p>
+          <h3 className="font-semibold text-white transition-colors duration-300 hover:text-blue-400">{job.title}</h3>
+          <p className="text-gray-400 text-sm mt-1 transition-colors duration-300 hover:text-gray-300">{job.company} • {job.location}</p>
         </div>
-        <span className="bg-blue-900 text-blue-300 text-xs px-2 py-1 rounded-full">
+        <span className="bg-blue-900 text-blue-300 text-xs px-2 py-1 rounded-full transition-all duration-300 hover:bg-blue-800">
           {job.type}
         </span>
       </div>
       
-      <p className="my-3 text-gray-400 text-sm">{job.description}</p>
+      <p className="my-3 text-gray-400 text-sm transition-colors duration-300 hover:text-gray-300">{job.description}</p>
       
       <div className="flex flex-wrap gap-1 mt-3">
         {job.skills.map((skill, index) => (
           <span
             key={index}
-            className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded"
+            className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded transition-all duration-300 hover:bg-gray-600 hover:scale-105"
           >
             {skill}
           </span>
@@ -171,7 +171,7 @@ const JobCard = ({ job }) => {
       </div>
       
       <div className="flex justify-between items-center mt-4">
-        <span className="text-xs text-gray-500">{job.posted}</span>
+        <span className="text-xs text-gray-500 transition-colors duration-300 hover:text-gray-400">{job.posted}</span>
         <button className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs rounded transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
           Apply
         </button>
@@ -304,6 +304,14 @@ const CareerHub = () => {
             </div>
           </div>
         )}
+      </div>
+      {/* Footer */}
+      <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
+        <div className="flex items-center justify-center">
+          <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+          <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
+        </div>
+        <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>
       </div>
     </div>
   );

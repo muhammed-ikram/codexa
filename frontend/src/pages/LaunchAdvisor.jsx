@@ -57,13 +57,13 @@ const LaunchAdvisor = () => {
         </div>
 
         {/* Project Summary */}
-        <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 mb-6 border border-gray-700 animate-fade-in">
-          <h2 className="text-lg font-semibold mb-3 text-white">Project: {projectData.name}</h2>
+        <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 mb-6 border border-gray-700 animate-fade-in transition-all duration-300 hover:border-gray-600">
+          <h2 className="text-lg font-semibold mb-3 text-white transition-colors duration-300 hover:text-blue-400">Project: {projectData.name}</h2>
           <div className="flex flex-wrap gap-2">
             {projectData.techStack.map((tech, index) => (
-              <div key={index} className="flex items-center bg-gray-700/50 px-3 py-1.5 rounded-full text-sm border border-gray-600">
-                <span className="mr-2">{tech.icon}</span>
-                <span>{tech.name}</span>
+              <div key={index} className="flex items-center bg-gray-700/50 px-3 py-1.5 rounded-full text-sm border border-gray-600 transition-all duration-300 hover:bg-gray-600/50 hover:border-gray-500 hover:scale-105">
+                <span className="mr-2 transition-transform duration-300 hover:scale-110">{tech.icon}</span>
+                <span className="transition-colors duration-300 hover:text-white">{tech.name}</span>
               </div>
             ))}
           </div>
@@ -101,26 +101,26 @@ const LaunchAdvisor = () => {
                   {deploymentOptions.map((option, index) => (
                     <tr 
                       key={index} 
-                      className={`${index % 2 === 0 ? 'bg-gray-800/50' : 'bg-gray-900/50'} border-b border-gray-700 last:border-b-0`}
+                      className={`${index % 2 === 0 ? 'bg-gray-800/50' : 'bg-gray-900/50'} border-b border-gray-700 last:border-b-0 transition-all duration-300 hover:bg-gray-700/50`}
                     >
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 transition-all duration-300 hover:text-blue-400">
                         <div className="flex items-center">
-                          <span className="text-xl mr-2">{option.logo}</span>
-                          <span className="font-medium">{option.platform}</span>
+                          <span className="text-xl mr-2 transition-transform duration-300 hover:scale-110">{option.logo}</span>
+                          <span className="font-medium transition-colors duration-300 hover:text-blue-400">{option.platform}</span>
                           {option.isRecommended && (
-                            <span className="ml-2 bg-green-600 text-xs px-2 py-0.5 rounded-full text-white">
+                            <span className="ml-2 bg-green-600 text-xs px-2 py-0.5 rounded-full text-white transition-all duration-300 hover:bg-green-500">
                               Recommended
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-300 text-sm">{option.cost}</td>
+                      <td className="py-3 px-4 text-gray-300 text-sm transition-colors duration-300 hover:text-gray-200">{option.cost}</td>
                       <td className="py-3 px-4">
                         <ul className="space-y-1">
                           {option.pros.slice(0, 2).map((pro, i) => (
-                            <li key={i} className="flex items-start text-sm">
-                              <span className="text-green-400 mr-1.5">✓</span>
-                              <span className="text-gray-300">{pro}</span>
+                            <li key={i} className="flex items-start text-sm transition-all duration-300 hover:text-green-400">
+                              <span className="text-green-400 mr-1.5 transition-colors duration-300 hover:text-green-300">✓</span>
+                              <span className="text-gray-300 transition-colors duration-300 hover:text-gray-200">{pro}</span>
                             </li>
                           ))}
                         </ul>
@@ -128,9 +128,9 @@ const LaunchAdvisor = () => {
                       <td className="py-3 px-4">
                         <ul className="space-y-1">
                           {option.cons.slice(0, 2).map((con, i) => (
-                            <li key={i} className="flex items-start text-sm">
-                              <span className="text-red-400 mr-1.5">✗</span>
-                              <span className="text-gray-300">{con}</span>
+                            <li key={i} className="flex items-start text-sm transition-all duration-300 hover:text-red-400">
+                              <span className="text-red-400 mr-1.5 transition-colors duration-300 hover:text-red-300">✗</span>
+                              <span className="text-gray-300 transition-colors duration-300 hover:text-gray-200">{con}</span>
                             </li>
                           ))}
                         </ul>
@@ -144,11 +144,12 @@ const LaunchAdvisor = () => {
         )}
       </div>
       {/* Footer */}
-      <div className="mt-16 text-center text-gray-500 text-sm">
-        <p className="mb-2">
-          <span className="font-medium text-gray-400 italic">CodeXA - for the engineers, by the engineers</span>
-        </p>
-        <p>© 2025 CodeXA. All rights reserved.</p>
+      <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
+        <div className="flex items-center justify-center">
+          <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+          <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
+        </div>
+        <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>
       </div>
     </div>
   );

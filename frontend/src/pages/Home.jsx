@@ -10,8 +10,11 @@ function Home() {
       {/* Navbar */}
       <nav className="px-6 py-4 flex justify-between items-center border-b border-gray-800">
         <div className="flex items-center space-x-3">
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            CodeXA
+          <div className="flex items-center">
+            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-8 h-8 mr-2" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              CodeXA
+            </span>
           </div>
           <div className="text-sm font-medium text-gray-400 italic whitespace-nowrap">for the engineers, by the engineers</div>
         </div>
@@ -106,21 +109,24 @@ function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="px-6 py-10 border-t border-gray-800">
+      <footer className="px-4 py-3 border-t border-gray-800 transition-all duration-300 hover:border-gray-700">
         <div className="max-w-6xl mx-auto text-center">
           <div className="flex justify-center items-center">
-            <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              CodeXA
+            <div className="flex items-center justify-center">
+              <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+              <span className="text-sm font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent transition-all duration-300 hover:from-blue-300 hover:to-purple-400">
+                CodeXA
+              </span>
             </div>
-            <div className="text-sm font-medium text-gray-500 ml-3 italic">for the engineers, by the engineers</div>
+            <div className="text-xs font-medium text-gray-500 ml-2 italic transition-colors duration-300 hover:text-gray-300">for the engineers, by the engineers</div>
           </div>
-          <p className="text-gray-500 mb-6">
+          <p className="text-gray-500 text-xs mt-1 transition-colors duration-300 hover:text-gray-300">
             © 2025 CodeXA. All rights reserved.
           </p>
-          <div className="flex justify-center space-x-6">
-            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors">Terms</a>
-            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors">Privacy</a>
-            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors">Contact</a>
+          <div className="flex justify-center space-x-3 mt-1">
+            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors text-xs transition-all duration-300 hover:scale-105">Terms</a>
+            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors text-xs transition-all duration-300 hover:scale-105">Privacy</a>
+            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors text-xs transition-all duration-300 hover:scale-105">Contact</a>
           </div>
         </div>
       </footer>

@@ -17,6 +17,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import LaunchAdvisorPage from "./pages/LaunchAdvisorPage";
 import Unauthorized from "./pages/Unauthorized";
 import PreviewPage from "./pages/PreviewPage";
+import CodexaAssistance from "./pages/CodexaAssistance";
 
 function App() {
   return (
@@ -53,11 +54,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/workspace/:projectId" element={<Workspace />} />
-            <Route path="/mentor" element={
-              <div className="h-screen w-full">
-                <AiMentorPanel />
-              </div>
-            } />
+            <Route path="/codexa-assistance" element={<CodexaAssistance />} />
             <Route path="/launch-advisor" element={<LaunchAdvisorPage />} />
             <Route path="/launch-advisor/:projectId" element={<LaunchAdvisor />} />
             <Route path="/career-hub" element={<CareerHub />} />

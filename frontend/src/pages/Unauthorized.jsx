@@ -35,9 +35,10 @@ const Unauthorized = () => {
       </div>
       {/* Footer */}
       <div className="mt-16 text-center text-gray-500 text-sm">
-        <p className="mb-2">
+        <div className="flex items-center justify-center mb-2">
+          <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-6 h-6 mr-2" />
           <span className="font-medium text-gray-400 italic">CodeXA - for the engineers, by the engineers</span>
-        </p>
+        </div>
         <p>© 2025 CodeXA. All rights reserved.</p>
       </div>
     </div>

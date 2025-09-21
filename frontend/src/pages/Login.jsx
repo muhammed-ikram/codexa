@@ -37,12 +37,15 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Animated logo */}
         <div className="text-center mb-10 animate-fade-in">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 transform transition-transform duration-500 hover:scale-105">
+          {/* <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 transform transition-transform duration-500 hover:scale-105">
             <span className="text-2xl font-bold text-white">CX</span>
+          </div> */}
+          <div className="flex items-center justify-center">
+            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-10 h-10 mr-3" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              CodeXA
+            </h1>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            CodeXA
-          </h1>
           <p className="text-sm font-medium text-gray-400 mt-2 italic text-center">for the engineers, by the engineers</p>
           <p className="text-gray-400 mt-2">Sign in to your account</p>
         </div>
@@ -142,11 +145,12 @@ const Login = () => {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-gray-500 text-sm animate-fade-in-delay">
-          <p className="mb-2">
-            <span className="font-medium text-gray-400 italic">CodeXA - for the engineers, by the engineers</span>
-          </p>
-          <p>© 2025 CodeXA. All rights reserved.</p>
+        <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
+          <div className="flex items-center justify-center">
+            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+            <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
+          </div>
+          <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>
         </div>
       </div>
     </div>
