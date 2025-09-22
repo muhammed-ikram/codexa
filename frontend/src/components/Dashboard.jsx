@@ -553,6 +553,24 @@ const Dashboard = () => {
   const totalProjects = projects.length;
   const completedProjects = projects.filter((p) => p.isCompleted).length;
   const inProgressProjects = totalProjects - completedProjects;
+  const averageProgress = totalProjects > 0 ? Math.round(projects.reduce((acc, p) => acc + (p.progress || 0), 0) / totalProjects) : 0;
+
+  // Series for sparkline: progress ordered by recency
+  const progressSeries = [...projects]
+    .sort((a, b) => new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0))
+    .map(p => Math.max(0, Math.min(100, p.progress || 0)));
+
+  // Tech frequency map
+  const techCounts = projects.reduce((map, p) => {
+    (p.techStack || []).forEach(t => {
+      const key = typeof t === 'string' ? t : (t?.name || t?.label || 'Tech');
+      map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, {});
+  const topTech = Object.entries(techCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
@@ -577,6 +595,54 @@ const Dashboard = () => {
           <StatCard label="In Progress" value={inProgressProjects} color="yellow" />
         </div>
 
+        {/* Progress Visualizations */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          {/* Donut - Completion Ratio */}
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700">
+            <h3 className="text-sm font-medium text-white mb-4">Completion Ratio</h3>
+            <div className="flex items-center">
+              <Donut percent={totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0} />
+              <div className="ml-5">
+                <div className="text-3xl font-bold text-green-400">{totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%</div>
+                <div className="text-gray-400 text-sm">{completedProjects} of {totalProjects} projects</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sparkline - Recent Progress */}
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700">
+            <h3 className="text-sm font-medium text-white mb-4">Recent Progress</h3>
+            <Sparkline data={progressSeries} />
+            <div className="mt-3 text-sm text-gray-400">Average progress: <span className="text-blue-400 font-medium">{averageProgress}%</span></div>
+          </div>
+
+          {/* Top Tech - Usage */}
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700">
+            <h3 className="text-sm font-medium text-white mb-4">Top Technologies</h3>
+            {topTech.length === 0 ? (
+              <div className="text-gray-500 text-sm">No tech data yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {topTech.map(([tech, count]) => {
+                  const maxCount = topTech[0][1] || 1;
+                  const width = Math.round((count / maxCount) * 100);
+                  return (
+                    <div key={tech} className="">
+                      <div className="flex items-center justify-between text-xs text-gray-300 mb-1">
+                        <span>{tech}</span>
+                        <span className="text-gray-400">{count}</span>
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${width}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Project Creation */}
         <div className="mb-8 bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 animate-slide-up">
           <h2 className="text-lg font-semibold mb-4 text-white">Start a new project</h2>
@@ -587,7 +653,7 @@ const Dashboard = () => {
                 type="text"
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
-                placeholder="Describe the project you want to build..."
+                placeholder="Type your project title — we’ll handle the rest."
                 className="flex-1 p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
               />
               <button
@@ -616,7 +682,7 @@ const Dashboard = () => {
                 type="text"
                 value={techInput}
                 onChange={(e) => setTechInput(e.target.value)}
-                placeholder="Enter tech stack (comma separated)..."
+                placeholder="Click a suggestion above or type your stack, comma‑separated."
                 className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
               />
               <button
@@ -672,5 +738,45 @@ const StatCard = ({ label, value, color }) => (
     </div>
   </div>
 );
+
+// Donut chart using pure CSS (circle with stroke-dasharray)
+const Donut = ({ percent = 0, size = 96, stroke = 10 }) => {
+  const clamped = Math.max(0, Math.min(100, percent));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const dash = (clamped / 100) * c;
+  const rest = c - dash;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={r} stroke="#374151" strokeWidth={stroke} fill="none" />
+      <circle cx={size/2} cy={size/2} r={r} stroke="#10b981" strokeWidth={stroke} fill="none" strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`} strokeDasharray={`${dash} ${rest}`} />
+      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" className="fill-green-400 text-sm" style={{ fontSize: 12, fontWeight: 700 }}>{clamped}%</text>
+    </svg>
+  );
+};
+
+// Minimal sparkline component
+const Sparkline = ({ data = [], width = 280, height = 80 }) => {
+  if (!data || data.length === 0) {
+    return <div className="w-full h-[80px] bg-gray-700 rounded" />;
+  }
+  const max = Math.max(100, ...data);
+  const min = 0;
+  const points = data.map((v, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * width;
+    const y = height - ((v - min) / (max - min)) * height;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polyline fill="none" stroke="#60a5fa" strokeWidth="2" points={points} />
+      {data.map((v, i) => {
+        const x = (i / Math.max(1, data.length - 1)) * width;
+        const y = height - ((v - min) / (max - min)) * height;
+        return <circle key={i} cx={x} cy={y} r="2" fill="#93c5fd" />;
+      })}
+    </svg>
+  );
+};
 
 export default Dashboard;

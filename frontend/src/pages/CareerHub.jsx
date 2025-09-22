@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
 
 // SkillReport Component
 const SkillReport = ({ skillsData }) => {
@@ -160,7 +161,7 @@ const JobCard = ({ job }) => {
       <p className="my-3 text-gray-400 text-sm transition-colors duration-300 hover:text-gray-300">{job.description}</p>
       
       <div className="flex flex-wrap gap-1 mt-3">
-        {job.skills.map((skill, index) => (
+        {(job.skills || job.tags || []).map((skill, index) => (
           <span
             key={index}
             className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded transition-all duration-300 hover:bg-gray-600 hover:scale-105"
@@ -172,9 +173,9 @@ const JobCard = ({ job }) => {
       
       <div className="flex justify-between items-center mt-4">
         <span className="text-xs text-gray-500 transition-colors duration-300 hover:text-gray-400">{job.posted}</span>
-        <button className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs rounded transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
-          Apply
-        </button>
+        <a href={job.url || '#'} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs rounded transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl">
+          View
+        </a>
       </div>
     </div>
   );
@@ -183,34 +184,11 @@ const JobCard = ({ job }) => {
 // Main CareerHub Component
 const CareerHub = () => {
   const [activeTab, setActiveTab] = useState('interview-prep');
-  const [skillsData, setSkillsData] = useState([
-    { name: 'React', proficiency: 85 },
-    { name: 'JavaScript', proficiency: 90 },
-    { name: 'Node.js', proficiency: 75 },
-    { name: 'CSS', proficiency: 80 }
-  ]);
-  const [jobListings, setJobListings] = useState([
-    {
-      id: 1,
-      title: 'Frontend Developer',
-      company: 'TechCorp',
-      location: 'San Francisco, CA',
-      type: 'Full-time',
-      description: 'Build user interfaces using React and modern web technologies.',
-      skills: ['React', 'JavaScript', 'CSS'],
-      posted: '2 days ago'
-    },
-    {
-      id: 2,
-      title: 'Full Stack Engineer',
-      company: 'StartUp Inc',
-      location: 'Remote',
-      type: 'Contract',
-      description: 'Build scalable web applications with React and Node.js.',
-      skills: ['React', 'Node.js', 'MongoDB'],
-      posted: '1 week ago'
-    }
-  ]);
+  const [skillsData, setSkillsData] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [jobListings, setJobListings] = useState([]);
+  const [jobLoading, setJobLoading] = useState(false);
+  const [jobError, setJobError] = useState('');
 
   // Mock function to generate interview questions
   const generateInterviewQuestion = async () => {
@@ -223,6 +201,103 @@ const CareerHub = () => {
     
     return questions[Math.floor(Math.random() * questions.length)];
   };
+
+  // Fetch jobs dynamically based on top skills using Remotive API (no key required)
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchJobs = async () => {
+      if (!skillsData || skillsData.length === 0) {
+        setJobListings([]);
+        return;
+      }
+      setJobLoading(true);
+      setJobError('');
+      try {
+        // Use top 3 skills for concise results
+        const top = skillsData.slice(0, 3).map(s => s.name);
+        const queries = top.map(q => encodeURIComponent(q));
+        const urls = queries.map(q => `https://remotive.com/api/remote-jobs?search=${q}`);
+        const responses = await Promise.all(urls.map(u => fetch(u, { signal: controller.signal }).then(r => r.json()).catch(() => ({ jobs: [] }))));
+        const merged = [];
+        const seen = new Set();
+        responses.forEach(resp => {
+          (resp?.jobs || []).slice(0, 10).forEach(j => {
+            const id = j.id || j.url;
+            if (!id || seen.has(id)) return;
+            seen.add(id);
+            merged.push({
+              id,
+              title: j.title,
+              company: j.company_name || j.company || 'Company',
+              location: j.candidate_required_location || j.location || 'Remote',
+              type: j.job_type || 'Job',
+              description: (j.description || '').replace(/<[^>]+>/g, '').slice(0, 180) + '…',
+              skills: top, // highlight user skills
+              tags: j.tags || [],
+              posted: j.publication_date ? new Date(j.publication_date).toLocaleDateString() : '',
+              url: j.url || j.job_url
+            });
+          });
+        });
+        // Prioritize India jobs on top
+        const prioritized = merged.sort((a, b) => {
+          const ai = /india/i.test(a.location || '') || (a.tags || []).some(t => /india/i.test(t));
+          const bi = /india/i.test(b.location || '') || (b.tags || []).some(t => /india/i.test(t));
+          if (ai === bi) return 0;
+          return ai ? -1 : 1;
+        });
+        setJobListings(prioritized.slice(0, 25));
+      } catch (err) {
+        setJobError('Failed to load job feed');
+        setJobListings([]);
+      } finally {
+        setJobLoading(false);
+      }
+    };
+    fetchJobs();
+    return () => controller.abort();
+  }, [skillsData]);
+
+  // Fetch user projects and compute dynamic skill proficiencies
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await api.get('/projects');
+        const list = res?.data?.projects || [];
+        setProjects(list);
+      } catch (err) {
+        // On failure, keep empty projects
+        setProjects([]);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!projects || projects.length === 0) {
+      setSkillsData([]);
+      return;
+    }
+    // Aggregate progress per technology across all projects
+    const techTotals = new Map(); // tech -> { sumProgress, count }
+    projects.forEach((p) => {
+      const progress = Math.max(0, Math.min(100, p?.progress ?? (p?.isCompleted ? 100 : 0)));
+      (p?.techStack || []).forEach((t) => {
+        const name = typeof t === 'string' ? t : (t?.name || t?.label || 'Tech');
+        const rec = techTotals.get(name) || { sum: 0, count: 0 };
+        rec.sum += progress;
+        rec.count += 1;
+        techTotals.set(name, rec);
+      });
+    });
+    const computed = Array.from(techTotals.entries()).map(([name, rec]) => ({
+      name,
+      proficiency: Math.round(rec.sum / Math.max(1, rec.count))
+    }));
+    // Sort by proficiency desc, take top 12 for readability
+    computed.sort((a, b) => b.proficiency - a.proficiency);
+    setSkillsData(computed.slice(0, 12));
+  }, [projects]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-6">
@@ -298,6 +373,15 @@ const CareerHub = () => {
             
             {/* Job List */}
             <div className="h-96 overflow-y-auto pr-2">
+              {jobLoading && (
+                <div className="text-gray-400 text-sm">Loading jobs…</div>
+              )}
+              {(!jobLoading && jobError) && (
+                <div className="text-red-400 text-sm">{jobError}</div>
+              )}
+              {!jobLoading && !jobError && jobListings.length === 0 && (
+                <div className="text-gray-400 text-sm">No jobs found for your top skills yet.</div>
+              )}
               {jobListings.map((job) => (
                 <JobCard key={job.id} job={job} />
               ))}
