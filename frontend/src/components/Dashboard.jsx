@@ -301,41 +301,112 @@ const AuthContext = React.createContext({ user: null });
 
 // Tech suggestions
 const techSuggestions = [
-  "React",
-  "Node.js",
-  "MongoDB",
-  "Express",
-  "Next.js",
-  "Vue.js",
-  "Tailwind",
-  "PostgreSQL",
-  "MySQL",
-  "GraphQL",
+  // Frontend
+  "React", "Next.js", "Vue.js", "Nuxt.js", "Angular", "Svelte", "SolidJS",
+  // Backend (JS/TS)
+  "Node.js", "Express", "NestJS", "Fastify", "Koa",
+  // Python
+  "Python", "Flask", "Django", "FastAPI",
+  // Java / JVM
+  "Java", "Spring Boot", "Kotlin", "Micronaut",
+  // PHP / Ruby / .NET / Go
+  "Laravel", "Symfony", "Ruby on Rails", ".NET", "ASP.NET Core", "Go", "Gin", "Fiber",
+  // Databases
+  "PostgreSQL", "MySQL", "SQLite", "MongoDB", "Redis", "Elasticsearch",
+  // Messaging / Streaming
+  "Kafka", "RabbitMQ",
+  // Infra & DevOps
+  "Docker", "Kubernetes", "Nginx", "AWS", "GCP", "Azure",
+  // Data layer / ORMs / APIs
+  "GraphQL", "REST", "Prisma", "TypeORM", "Hibernate", "Sequelize",
+  // Languages & Tooling
+  "TypeScript", "JavaScript", "Bun",
+  // Auth / Realtime
+  "Auth0", "JWT", "Socket.io",
+  // UI / CSS
+  "Tailwind", "Bootstrap", "Chakra UI", "Material UI"
 ];
 
 // ProjectCard component
-const ProjectCard = ({ project }) => {
+const ProjectCard = ({ project, onOpen }) => {
   const techColors = {
+    // Frontend
     React: "bg-blue-500",
-    "Vue.js": "bg-green-500",
-    "Node.js": "bg-green-600",
     "Next.js": "bg-gray-800",
+    "Vue.js": "bg-green-500",
+    "Nuxt.js": "bg-emerald-600",
+    Angular: "bg-red-600",
+    Svelte: "bg-orange-600",
+    SolidJS: "bg-cyan-600",
+    // Backend (JS/TS)
+    "Node.js": "bg-green-600",
     Express: "bg-gray-600",
-    MongoDB: "bg-green-700",
+    NestJS: "bg-rose-600",
+    Fastify: "bg-lime-600",
+    Koa: "bg-teal-600",
+    // Python
+    Python: "bg-yellow-500",
+    Flask: "bg-indigo-500",
+    Django: "bg-green-700",
+    FastAPI: "bg-emerald-500",
+    // Java / JVM
+    Java: "bg-orange-700",
+    "Spring Boot": "bg-green-800",
+    Kotlin: "bg-purple-700",
+    Micronaut: "bg-violet-700",
+    // PHP / Ruby / .NET / Go
+    Laravel: "bg-red-700",
+    Symfony: "bg-slate-600",
+    "Ruby on Rails": "bg-rose-700",
+    ".NET": "bg-purple-800",
+    "ASP.NET Core": "bg-fuchsia-700",
+    Go: "bg-cyan-700",
+    Gin: "bg-sky-600",
+    Fiber: "bg-sky-700",
+    // Databases
     PostgreSQL: "bg-blue-700",
     MySQL: "bg-orange-500",
-    Tailwind: "bg-cyan-500",
-    API: "bg-purple-500",
-    "Socket.io": "bg-gray-700",
+    SQLite: "bg-slate-500",
+    MongoDB: "bg-green-700",
     Redis: "bg-red-500",
-    Prisma: "bg-indigo-600",
-    Gatsby: "bg-purple-600",
+    Elasticsearch: "bg-amber-700",
+    // Messaging / Streaming
+    Kafka: "bg-amber-600",
+    RabbitMQ: "bg-orange-600",
+    // Infra & DevOps
+    Docker: "bg-sky-500",
+    Kubernetes: "bg-blue-600",
+    Nginx: "bg-emerald-700",
+    AWS: "bg-yellow-600",
+    GCP: "bg-red-500",
+    Azure: "bg-blue-700",
+    // Data layer / ORMs / APIs
     GraphQL: "bg-pink-500",
+    REST: "bg-purple-500",
+    Prisma: "bg-indigo-600",
+    TypeORM: "bg-indigo-700",
+    Hibernate: "bg-amber-800",
+    Sequelize: "bg-teal-700",
+    // Languages & Tooling
+    TypeScript: "bg-blue-600",
+    JavaScript: "bg-yellow-500",
+    Bun: "bg-gray-700",
+    // Auth / Realtime
+    Auth0: "bg-orange-700",
+    JWT: "bg-purple-700",
+    "Socket.io": "bg-gray-700",
+    // UI / CSS
+    Tailwind: "bg-cyan-500",
+    Bootstrap: "bg-purple-700",
+    "Chakra UI": "bg-emerald-600",
+    "Material UI": "bg-blue-700",
+    // Hosting / Misc
     Netlify: "bg-teal-500",
+    Vercel: "bg-gray-700",
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in transform hover:scale-[1.02]">
+    <div onClick={onOpen} className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-5 border border-gray-700 hover:border-blue-500 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in transform hover:scale-[1.02] cursor-pointer">
       <div className="flex items-start justify-between mb-3">
         <h3 className="text-lg font-semibold text-white truncate pr-2 transition-colors duration-300 hover:text-blue-400">
           {project.title}
@@ -359,14 +430,25 @@ const ProjectCard = ({ project }) => {
         ))}
       </div>
 
-      {/* Progress Bar (Static for now) */}
+      {/* Progress Bar (Dynamic) */}
       <div className="w-full">
         <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>Progress</span>
-          <span>50%</span>
+          <span>{project.progress ?? 0}%</span>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-1.5">
-          <div className="h-1.5 rounded-full bg-blue-500" style={{ width: "50%" }}></div>
+          <div
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              (project.progress ?? 0) === 100
+                ? 'bg-green-500'
+                : (project.progress ?? 0) >= 70
+                ? 'bg-blue-500'
+                : (project.progress ?? 0) >= 40
+                ? 'bg-yellow-500'
+                : 'bg-orange-500'
+            }`}
+            style={{ width: `${project.progress ?? 0}%` }}
+          ></div>
         </div>
       </div>
     </div>
@@ -381,6 +463,7 @@ const Dashboard = () => {
   const [showTechInput, setShowTechInput] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [moteIndex, setMoteIndex] = useState(0);
 
   const authContext = useContext(AuthContext);
   const username = user?.username || authContext?.user?.name || "Developer";
@@ -410,6 +493,38 @@ const Dashboard = () => {
     };
     fetchUser();
     fetchProjects();
+  }, []);
+
+  // Rotating motivation statements (changes every 20–30 seconds)
+  const motivations = [
+    "Small steps today build big systems tomorrow.",
+    "Ship something. Iteration beats perfection.",
+    "Focus on one bug, one feature—right now.",
+    "Progress over perfection. Keep moving.",
+    "Readability first. Future you will thank you.",
+    "Tests save time. Add one as you go.",
+    "Delete dead code. Clarity is speed.",
+    "You’re one commit closer to done.",
+    "Hard problems shrink when written down.",
+    "Stay curious. Ask why twice."
+  ];
+
+  useEffect(() => {
+    let isMounted = true;
+    let timerId;
+    const scheduleNext = () => {
+      const delay = 20000 + Math.floor(Math.random() * 10000); // 20–30s
+      timerId = setTimeout(() => {
+        if (!isMounted) return;
+        setMoteIndex((prev) => (prev + 1) % motivations.length);
+        scheduleNext();
+      }, delay);
+    };
+    scheduleNext();
+    return () => {
+      isMounted = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, []);
 
   // Handle project submission
@@ -450,6 +565,9 @@ const Dashboard = () => {
           <p className="text-gray-400 text-sm mt-1">
             Here's what's happening with your projects today
           </p>
+          <div className="mt-4 bg-gradient-to-r from-indigo-600/20 to-blue-600/20 border border-indigo-700/40 text-indigo-300 rounded-lg px-4 py-3">
+            <span className="text-sm">{motivations[moteIndex]}</span>
+          </div>
         </div>
 
         {/* Stats */}
@@ -523,8 +641,15 @@ const Dashboard = () => {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => (
-              <ProjectCard key={project._id} project={project} />
+            {([...projects]
+              .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+              .slice(0, 3)
+            ).map((project) => (
+              <ProjectCard
+                key={project._id}
+                project={project}
+                onOpen={() => navigate(`/workspace/${project._id}`)}
+              />
             ))}
           </div>
         </div>

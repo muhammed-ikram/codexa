@@ -1,6 +1,8 @@
 // src/components/AiMentorPanel.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../utils/api';
+import ReactFlow, { MiniMap, Controls, Background, MarkerType } from 'reactflow';
+import 'reactflow/dist/style.css';
 
 // --- MilestoneList (unchanged behavior but uses onMilestoneUpdate to persist) ---
 const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
@@ -136,8 +138,7 @@ const MentorChat = ({ projectId, messages = [], onSendMessageRemote }) => {
 const BlueprintView = ({ project, onRequestGenerate }) => {
   const techStack = project?.techStack || [];
   const blueprint = project?.blueprint || [];
-  const objectives = project?.objectives || [];
-  const goals = project?.goals || [];
+  const milestones = Array.isArray(project?.milestones) ? project.milestones : [];
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -192,27 +193,141 @@ const BlueprintView = ({ project, onRequestGenerate }) => {
             {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
           </div>
         ) : (
-          <div className="space-y-3">
-            {blueprint.map((item, idx) => (
-              <div key={idx} className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
-                <p className="text-sm text-gray-300">{item}</p>
-              </div>
-            ))}
+          <div className="h-[36rem] bg-gray-800/60 rounded-xl border border-gray-700">
+            <BlueprintFlow edges={blueprint} />
           </div>
         )}
       </div>
 
       <div>
-        <h4 className="text-lg font-semibold text-white mb-4">Project Goals</h4>
-        {(!goals || goals.length === 0) ? (
-          <div className="text-gray-400 text-center py-6">No project goals yet.</div>
+        <h4 className="text-lg font-semibold text-white mb-3">Project Goals</h4>
+        {milestones.length === 0 ? (
+          <div className="text-gray-400 text-center py-6">No milestones yet.</div>
         ) : (
-          <ul className="space-y-3 text-gray-300">
-            {goals.map((g, i) => <li key={i} className="flex items-start gap-3"><div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full mt-2 flex-shrink-0"></div><span>{g}</span></li>)}
-          </ul>
+          <div className="space-y-3">
+            <p className="text-gray-200 text-sm leading-6 bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+              {(() => {
+                const titles = milestones.map(m => m?.title).filter(Boolean);
+                if (titles.length === 1) return `Goal: ${titles[0]}.`;
+                if (titles.length === 2) return `Goals: ${titles[0]} and ${titles[1]}.`;
+                const head = titles.slice(0, -1).join(', ');
+                const last = titles[titles.length - 1];
+                return `Goals: ${head}, and ${last}.`;
+              })()}
+            </p>
+            <ol className="list-decimal list-inside space-y-1 text-gray-300 text-sm">
+              {milestones.map((m, idx) => (
+                <li key={m.id || idx}>
+                  <span className="font-medium text-white">{m.title}</span>
+                  {m.description ? <span className="text-gray-400"> — {m.description}</span> : null}
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
       </div>
     </div>
+  );
+};
+
+// --- BlueprintFlow: renders edges as a graph using React Flow ---
+const BlueprintFlow = ({ edges = [] }) => {
+  // Build layered layout: try to infer levels by simple BFS over edge graph
+  const { nodes, rfEdges } = useMemo(() => {
+    // Defensive normalization & cap sizes to avoid layout blowups
+    const normalized = Array.isArray(edges)
+      ? edges
+          .map((e) => ({ from: String(e?.from ?? '').trim(), to: String(e?.to ?? '').trim() }))
+          .filter((e) => e.from && e.to && e.from !== e.to)
+      : [];
+    const limited = normalized.slice(0, 40); // hard cap edges
+
+    const adjacency = new Map();
+    const inDegree = new Map();
+    const allNodes = new Set();
+    limited.forEach(e => {
+      const from = e.from;
+      const to = e.to;
+      allNodes.add(from); allNodes.add(to);
+      if (!adjacency.has(from)) adjacency.set(from, new Set());
+      adjacency.get(from).add(to);
+      inDegree.set(to, (inDegree.get(to) || 0) + 1);
+      if (!inDegree.has(from)) inDegree.set(from, inDegree.get(from) || 0);
+    });
+    // Sources are nodes with inDegree 0
+    const queue = Array.from(allNodes).filter(n => (inDegree.get(n) || 0) === 0);
+    const levelOf = new Map();
+    queue.forEach(n => levelOf.set(n, 0));
+    // BFS assign levels (cycle-safe: only visit once)
+    for (let i = 0; i < queue.length; i++) {
+      const node = queue[i];
+      const level = levelOf.get(node) || 0;
+      const nexts = Array.from(adjacency.get(node) || []);
+      nexts.forEach(nxt => {
+        if (!levelOf.has(nxt)) {
+          levelOf.set(nxt, level + 1);
+          queue.push(nxt);
+        }
+      });
+    }
+    // Group by level and assign vertical positions (top-down layout)
+    const groups = new Map();
+    Array.from(allNodes).forEach(n => {
+      const lvl = levelOf.has(n) ? levelOf.get(n) : 0;
+      if (!groups.has(lvl)) groups.set(lvl, []);
+      groups.get(lvl).push(n);
+    });
+    // Sort levels and spread nodes
+    const sortedLevels = Array.from(groups.keys()).sort((a, b) => a - b);
+    const nodeObjs = [];
+    const nodeWidth = 240;
+    const nodeHeight = 64;
+    const xGap = 160; // narrower width requires smaller horizontal spacing
+    const yGap = 140; // generous vertical spacing
+    // Cap node count to keep UI responsive
+    let count = 0;
+    sortedLevels.forEach((lvl, rowIndex) => {
+      const row = groups.get(lvl);
+      row.forEach((name, colIndex) => {
+        if (count >= 60) return; // hard cap nodes
+        nodeObjs.push({
+          id: name,
+          data: { label: name },
+          position: { x: 40 + colIndex * xGap, y: 20 + rowIndex * yGap },
+          style: {
+            width: nodeWidth,
+            height: nodeHeight,
+            borderRadius: 12,
+            background: '#1f2937',
+            color: '#e5e7eb',
+            border: '1px solid #4b5563',
+            fontWeight: 600
+          }
+        });
+        count++;
+      });
+    });
+
+    const flowEdges = (Array.from(adjacency.keys()).length === 0 ? limited : Array.from(adjacency.entries()).flatMap(([f, set]) => Array.from(set).map(t => ({ from: f, to: t }))))
+      .map((e, idx) => ({
+      id: `e-${idx}`,
+      source: String(e.from),
+      target: String(e.to),
+      animated: true,
+      type: 'smoothstep',
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#93c5fd' },
+      style: { stroke: '#60a5fa', strokeWidth: 2 }
+    }));
+
+    return { nodes: nodeObjs, rfEdges: flowEdges };
+  }, [edges]);
+
+  return (
+    <ReactFlow nodes={nodes} edges={rfEdges} fitView minZoom={0.6} defaultZoom={1.1}>
+      <MiniMap nodeColor={() => '#374151'} maskColor="rgba(0,0,0,0.2)" />
+      <Controls position="bottom-right" />
+      <Background variant="dots" gap={20} color="#475569" />
+    </ReactFlow>
   );
 };
 
@@ -446,11 +561,28 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
         )}
 
         {activeTab === 'blueprint' && (
-          <BlueprintView project={project} onRequestGenerate={async (action) => handleGenerate(action)} />
+          <div className="space-y-6 p-4">
+            {project?.description && (
+              <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
+                <h4 className="text-lg font-semibold text-white mb-2">Description</h4>
+                <p className="text-sm text-gray-200 whitespace-pre-wrap">{project.description}</p>
+              </div>
+            )}
+            <BlueprintView project={project} onRequestGenerate={async (action) => handleGenerate(action)} />
+          </div>
         )}
 
         {activeTab === 'milestone-tracker' && (
-          <MilestoneList milestones={project?.milestones || []} onMilestoneUpdate={handleMilestoneUpdate} />
+          <div className="space-y-4 p-4">
+            <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
+              <h4 className="text-lg font-semibold text-white mb-2">Progress</h4>
+              <div className="w-full bg-gray-600 rounded-full h-2.5">
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full" style={{ width: `${project?.progress || 0}%` }} />
+              </div>
+              <div className="text-sm text-gray-300 mt-2">{project?.progress || 0}% complete</div>
+            </div>
+            <MilestoneList milestones={project?.milestones || []} onMilestoneUpdate={handleMilestoneUpdate} />
+          </div>
         )}
       </div>
     </div>

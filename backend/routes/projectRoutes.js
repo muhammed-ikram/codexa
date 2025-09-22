@@ -85,23 +85,30 @@ router.post("/:id/generate", verifyToken, async (req, res) => {
 
     // Prompt Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `
-    You are an AI project mentor. Based on this project:
-    Title: ${project.title}
-    Tech Stack: ${project.techStack.join(", ")}
-    
-    Generate:
-    1. A clear project description.
-    2. A list of milestones (step by step, max 8).
-    3. A simple system flow (blueprint) as JSON array of { "from": "X", "to": "Y" }.
+    const prompt = `You are an AI mentor. Using the project info below, output STRICT JSON suitable for storage.
+Project:
+  Title: ${project.title}
+  Tech Stack: ${project.techStack.join(", ")}
 
-    Respond ONLY in strict JSON like this:
-    {
-      "description": "...",
-      "milestones": ["...", "..."],
-      "blueprint": [{"from":"...", "to":"..."}]
-    }
-    `;
+RESPONSE FORMAT (no markdown, no code fences):
+{
+  "description": "string",
+  "milestones": [
+    { "id": "string-slug", "title": "string", "description": "string", "priority": "low|medium|high", "estimatedTime": "e.g. 2 days", "completed": false }
+  ],
+  "blueprint": [ { "from": "string-node", "to": "string-node" } ]
+}
+
+BLUEPRINT REQUIREMENTS:
+- Create a project-specific workflow graph of 5 to 10 UNIQUE nodes.
+- Nodes should reflect technologies/layers relevant to the tech stack (e.g., UI framework, API layer, auth, services, database, cache, queue, storage/CDN, observability, CI/CD).
+- Include edges that form a coherent flow (top-down pipeline acceptable). Avoid trivial 2–3 node outputs.
+
+MILESTONE RULES:
+- Provide at most 8 concise, actionable milestones relevant to this project.
+
+Do not include any commentary outside the JSON.
+`;
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
@@ -114,10 +121,13 @@ router.post("/:id/generate", verifyToken, async (req, res) => {
       return res.status(500).json({ message: "Failed to parse Gemini response", raw: responseText });
     }
 
-    // Save to DB
-    project.description = structured.description;
-    project.milestones = structured.milestones;
-    project.blueprint = structured.blueprint;
+    // Save to DB (defensive defaults)
+    project.description = structured.description || project.description || "";
+    project.milestones = Array.isArray(structured.milestones) ? structured.milestones : [];
+    project.blueprint = Array.isArray(structured.blueprint) ? structured.blueprint : [];
+    project.completedMilestones = (project.milestones || []).filter(m => m.completed).length;
+    project.isCompleted = project.milestones.length > 0 && project.completedMilestones === project.milestones.length;
+    project.progress = project.milestones.length > 0 ? Math.round((project.completedMilestones / project.milestones.length) * 100) : 0;
     await project.save();
 
     res.json({ message: "Generated successfully", project });
@@ -127,7 +137,7 @@ router.post("/:id/generate", verifyToken, async (req, res) => {
   }
 });
 
-// Update milestone progress
+// Update milestone progress (legacy single toggle)
 router.put("/:id/milestone", verifyToken, async (req, res) => {
   try {
     const { milestoneIndex, completed } = req.body; // { milestoneIndex: 0, completed: true }
@@ -148,6 +158,78 @@ router.put("/:id/milestone", verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error updating milestone:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Patch project (milestones/progress updates from UI)
+router.patch('/:id', verifyToken, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+
+    const { milestones, completedMilestones, progress, currentMilestone, description, blueprint } = req.body;
+
+    if (Array.isArray(milestones)) project.milestones = milestones;
+    if (typeof completedMilestones === 'number') project.completedMilestones = completedMilestones;
+    if (typeof progress === 'number') project.progress = Math.max(0, Math.min(100, progress));
+    if (typeof currentMilestone === 'string') project.currentMilestone = currentMilestone;
+    if (typeof description === 'string') project.description = description;
+    if (Array.isArray(blueprint)) project.blueprint = blueprint;
+
+    // Recompute booleans
+    project.isCompleted = project.milestones.length > 0 && project.completedMilestones === project.milestones.length;
+
+    await project.save();
+    res.json({ message: 'Project updated', project });
+  } catch (err) {
+    console.error('Error patching project:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Minimal chat endpoints
+router.get('/:id/chat', verifyToken, async (req, res) => {
+  // For simplicity, return empty; could be extended with a Message model
+  res.json({ messages: [] });
+});
+
+router.post('/:id/chat', verifyToken, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ message: 'message is required' });
+
+    // Simple AI echo guidance using project context
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const prompt = `You are an AI mentor helping with a project titled "${project.title}" using ${project.techStack.join(', ')}. User asked: ${message}. Respond concisely (max 120 words).`;
+    const result = await model.generateContent(prompt);
+    const aiMessage = result.response.text();
+    res.json({ aiMessage });
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Minimal analytics endpoint (stubbed data)
+router.get('/:id/analytics', verifyToken, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    const data = {
+      maintainability: 78,
+      performance: 65,
+      testCoverage: 42,
+      totalPackages: 47,
+      outdatedPackages: 5,
+      vulnerabilities: 1
+    };
+    res.json(data);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

@@ -157,6 +157,89 @@ import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import axios from "axios";
 
+// Colored tech badge consistent with dashboard mapping
+const TechBadge = ({ tech }) => {
+  const colors = {
+    // Frontend
+    React: "bg-blue-500",
+    "Next.js": "bg-gray-800",
+    "Vue.js": "bg-green-500",
+    "Nuxt.js": "bg-emerald-600",
+    Angular: "bg-red-600",
+    Svelte: "bg-orange-600",
+    SolidJS: "bg-cyan-600",
+    // Backend (JS/TS)
+    "Node.js": "bg-green-600",
+    Express: "bg-gray-600",
+    NestJS: "bg-rose-600",
+    Fastify: "bg-lime-600",
+    Koa: "bg-teal-600",
+    // Python
+    Python: "bg-yellow-500",
+    Flask: "bg-indigo-500",
+    Django: "bg-green-700",
+    FastAPI: "bg-emerald-500",
+    // Java / JVM
+    Java: "bg-orange-700",
+    "Spring Boot": "bg-green-800",
+    Kotlin: "bg-purple-700",
+    Micronaut: "bg-violet-700",
+    // PHP / Ruby / .NET / Go
+    Laravel: "bg-red-700",
+    Symfony: "bg-slate-600",
+    "Ruby on Rails": "bg-rose-700",
+    ".NET": "bg-purple-800",
+    "ASP.NET Core": "bg-fuchsia-700",
+    Go: "bg-cyan-700",
+    Gin: "bg-sky-600",
+    Fiber: "bg-sky-700",
+    // Databases
+    PostgreSQL: "bg-blue-700",
+    MySQL: "bg-orange-500",
+    SQLite: "bg-slate-500",
+    MongoDB: "bg-green-700",
+    Redis: "bg-red-500",
+    Elasticsearch: "bg-amber-700",
+    // Messaging / Streaming
+    Kafka: "bg-amber-600",
+    RabbitMQ: "bg-orange-600",
+    // Infra & DevOps
+    Docker: "bg-sky-500",
+    Kubernetes: "bg-blue-600",
+    Nginx: "bg-emerald-700",
+    AWS: "bg-yellow-600",
+    GCP: "bg-red-500",
+    Azure: "bg-blue-700",
+    // Data layer / ORMs / APIs
+    GraphQL: "bg-pink-500",
+    REST: "bg-purple-500",
+    Prisma: "bg-indigo-600",
+    TypeORM: "bg-indigo-700",
+    Hibernate: "bg-amber-800",
+    Sequelize: "bg-teal-700",
+    // Languages & Tooling
+    TypeScript: "bg-blue-600",
+    JavaScript: "bg-yellow-500",
+    Bun: "bg-gray-700",
+    // Auth / Realtime
+    Auth0: "bg-orange-700",
+    JWT: "bg-purple-700",
+    "Socket.io": "bg-gray-700",
+    // UI / CSS
+    Tailwind: "bg-cyan-500",
+    Bootstrap: "bg-purple-700",
+    "Chakra UI": "bg-emerald-600",
+    "Material UI": "bg-blue-700",
+    // Hosting / Misc
+    Netlify: "bg-teal-500",
+    Vercel: "bg-gray-700",
+  };
+  const cls = colors[tech] || "bg-gray-600";
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full text-white ${cls}`}>{tech}</span>
+  );
+};
+
 const ProjectsPage = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -321,9 +404,7 @@ const ProjectsPage = () => {
 
                 <div className="flex flex-wrap gap-2 mb-5">
                   {project.techStack?.map((tech, index) => (
-                    <span key={index} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded transition-all duration-300 hover:bg-gray-600 hover:scale-105">
-                      {tech}
-                    </span>
+                    <TechBadge key={index} tech={tech} />
                   ))}
                 </div>
 
