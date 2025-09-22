@@ -1,53 +1,67 @@
-// import React, { useState } from 'react';
+
+// import React, { useState, useRef, useEffect } from 'react';
 // import logo from '../assets/logo.png';
+// import api from '../utils/api';
 
 // const CodexaAssistance = () => {
 //   const [messages, setMessages] = useState([
 //     {
 //       id: 1,
 //       sender: 'bot',
-//       content: 'Hello! I\'m your Codexa Assistant. How can I help you today?',
-//       timestamp: new Date().toLocaleTimeString()
-//     }
+//       content: "Hello! I'm your Codexa Assistant. How can I help you today?",
+//       timestamp: new Date().toLocaleTimeString(),
+//     },
 //   ]);
 //   const [newMessage, setNewMessage] = useState('');
 //   const [isTyping, setIsTyping] = useState(false);
 
-//   const handleSendMessage = () => {
+//   const messagesEndRef = useRef(null);
+
+//   // Auto-scroll to bottom on new messages
+//   useEffect(() => {
+//     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+//   }, [messages, isTyping]);
+
+//   const handleSendMessage = async () => {
 //     if (newMessage.trim() === '') return;
 
-//     // Add user message
 //     const userMessage = {
 //       id: Date.now(),
 //       sender: 'user',
 //       content: newMessage,
-//       timestamp: new Date().toLocaleTimeString()
+//       timestamp: new Date().toLocaleTimeString(),
 //     };
 
-//     setMessages(prev => [...prev, userMessage]);
+//     setMessages((prev) => [...prev, userMessage]);
 //     setNewMessage('');
 //     setIsTyping(true);
 
-//     // Simulate bot response after a delay
-//     setTimeout(() => {
-//       const botResponses = [
-//         "I understand your question. Let me help you with that.",
-//         "That's a great question! Here's what I know about that topic.",
-//         "Based on my knowledge, here's the information you're looking for.",
-//         "I've found some information that might be helpful to you.",
-//         "Let me provide you with a detailed explanation."
-//       ];
-      
+//     try {
+//       // Send message to backend
+//       const { data } = await api.post('/chat', { message: userMessage.content });
+
 //       const botMessage = {
 //         id: Date.now() + 1,
 //         sender: 'bot',
-//         content: botResponses[Math.floor(Math.random() * botResponses.length)],
-//         timestamp: new Date().toLocaleTimeString()
+//         content: data.aiResponse || "Sorry, I couldn't generate a response.",
+//         timestamp: new Date().toLocaleTimeString(),
 //       };
 
-//       setMessages(prev => [...prev, botMessage]);
+//       setMessages((prev) => [...prev, botMessage]);
+//     } catch (error) {
+//       console.error('Chat error:', error);
+
+//       const errorMessage = {
+//         id: Date.now() + 1,
+//         sender: 'bot',
+//         content: "⚠️ Oops! Something went wrong. Please try again later.",
+//         timestamp: new Date().toLocaleTimeString(),
+//       };
+
+//       setMessages((prev) => [...prev, errorMessage]);
+//     } finally {
 //       setIsTyping(false);
-//     }, 1000);
+//     }
 //   };
 
 //   const handleKeyPress = (e) => {
@@ -65,14 +79,11 @@
 //           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
 //             <div className="flex items-center gap-4">
 //               <div className="bg-gray-900 p-3 rounded-full">
-//                 {/* <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-//                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-//                 </svg> */}
 //                 <img className="h-8 w-8" src={logo} alt="My Logo" />
 //               </div>
 //               <div>
 //                 <h1 className="text-2xl font-bold text-white">Codexa Assistance</h1>
-//                 <p className="text-blue-100">Your AI-powered coding assistant</p>
+//                 <p className="text-blue-100">Your AI-powered project mentor</p>
 //               </div>
 //             </div>
 //           </div>
@@ -84,10 +95,12 @@
 //               {messages.map((message) => (
 //                 <div
 //                   key={message.id}
-//                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+//                   className={`flex ${
+//                     message.sender === 'user' ? 'justify-end' : 'justify-start'
+//                   }`}
 //                 >
 //                   <div
-//                     className={`max-w-xs lg:max-w-2xl px-5 py-4 rounded-2xl ${
+//                     className={`max-w-xs lg:max-w-2xl px-5 py-4 rounded-2xl break-words ${
 //                       message.sender === 'user'
 //                         ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none'
 //                         : 'bg-gray-700 text-gray-100 rounded-bl-none'
@@ -104,12 +117,19 @@
 //                   <div className="bg-gray-700 text-gray-100 px-5 py-4 rounded-2xl rounded-bl-none">
 //                     <div className="flex space-x-1">
 //                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-//                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-//                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+//                       <div
+//                         className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+//                         style={{ animationDelay: '0.1s' }}
+//                       ></div>
+//                       <div
+//                         className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+//                         style={{ animationDelay: '0.2s' }}
+//                       ></div>
 //                     </div>
 //                   </div>
 //                 </div>
 //               )}
+//               <div ref={messagesEndRef}></div>
 //             </div>
 
 //             {/* Input Area */}
@@ -136,27 +156,17 @@
 //                 </button>
 //               </div>
 //               <p className="text-xs text-gray-500 mt-3 text-center">
-//                 Codexa Assistance can help with general coding questions, platform navigation, and project guidance
+//                 Codexa Assistance can guide you in coding, project building, and practical development.
 //               </p>
 //             </div>
 //           </div>
 //         </div>
 //       </div>
-//       {/* Footer */}
-//       {/* <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
-//         <div className="flex items-center justify-center">
-//           <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
-//           <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
-//         </div>
-//         <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>
-//       </div> */}
 //     </div>
 //   );
 // };
 
 // export default CodexaAssistance;
-
-
 
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -197,7 +207,6 @@ const CodexaAssistance = () => {
     setIsTyping(true);
 
     try {
-      // Send message to backend
       const { data } = await api.post('/chat', { message: userMessage.content });
 
       const botMessage = {
@@ -231,6 +240,46 @@ const CodexaAssistance = () => {
     }
   };
 
+  // Function to render structured content from Markdown-like syntax
+  const renderBotContent = (content) => {
+    const lines = content.split('\n');
+    return (
+      <div className="text-gray-100">
+        {lines.map((line, index) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={index} className="mb-2"></div>;
+
+          // Headings
+          if (trimmed.startsWith('# ')) return <h1 key={index} className="text-lg font-bold mb-2">{trimmed.slice(2)}</h1>;
+          if (trimmed.startsWith('## ')) return <h2 key={index} className="text-base font-semibold mb-2">{trimmed.slice(3)}</h2>;
+          if (trimmed.startsWith('### ')) return <h3 key={index} className="font-semibold mb-1">{trimmed.slice(4)}</h3>;
+
+          // Bullet points
+          if (trimmed.startsWith('- ')) return <li key={index} className="ml-5 list-disc mb-1">{parseInlineMarkdown(trimmed.slice(2))}</li>;
+
+          // Numbered list
+          if (/^\d+\.\s/.test(trimmed)) {
+            return <li key={index} className="ml-5 list-decimal mb-1">{parseInlineMarkdown(trimmed.replace(/^\d+\.\s/, ''))}</li>;
+          }
+
+          // Paragraph
+          return <p key={index} className="mb-2">{parseInlineMarkdown(trimmed)}</p>;
+        })}
+      </div>
+    );
+  };
+
+  // Parse inline Markdown like **bold**
+  const parseInlineMarkdown = (text) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black p-6">
       <div className="max-w-4xl mx-auto">
@@ -255,9 +304,7 @@ const CodexaAssistance = () => {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-2xl px-5 py-4 rounded-2xl break-words ${
@@ -266,7 +313,7 @@ const CodexaAssistance = () => {
                         : 'bg-gray-700 text-gray-100 rounded-bl-none'
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    {message.sender === 'bot' ? renderBotContent(message.content) : <p className="text-sm">{message.content}</p>}
                     <p className="text-xs mt-2 opacity-70">{message.timestamp}</p>
                   </div>
                 </div>
@@ -277,14 +324,8 @@ const CodexaAssistance = () => {
                   <div className="bg-gray-700 text-gray-100 px-5 py-4 rounded-2xl rounded-bl-none">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.1s' }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      ></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                 </div>

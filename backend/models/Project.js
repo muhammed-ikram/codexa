@@ -34,6 +34,10 @@ const projectSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  completedMilestones: {
+    type: Number, // count of completed milestones
+    default: 0,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Project", projectSchema);
