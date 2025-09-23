@@ -27,7 +27,7 @@ const IconButton = ({ icon, onClick, className = "", "aria-label": ariaLabel, ti
   );
 };
 
-const IntegratedTerminal = ({ isOpen, onToggle }) => {
+const IntegratedTerminal = ({ isOpen, onToggle, fileList = [], onFsCommand }) => {
   const [history, setHistory] = useState([
     { type: 'info', content: 'Monaco IDE Terminal v1.0.0' },
     { type: 'info', content: 'Type "help" for available commands.' }
@@ -70,8 +70,44 @@ const IntegratedTerminal = ({ isOpen, onToggle }) => {
       description: 'List files in current directory',
       execute: (args) => ({
         type: 'info',
-        content: 'package.json  src/  public/  node_modules/  README.md'
+        content: (fileList && fileList.length) ? fileList.join('  ') : 'index.html  style.css  script.js'
       })
+    },
+    touch: {
+      description: 'Create a file: touch <filename>',
+      execute: (args) => {
+        const name = args[0];
+        if (!name) return { type: 'error', content: 'Usage: touch <filename>' };
+        onFsCommand && onFsCommand({ action: 'createFile', name });
+        return { type: 'success', content: `Created file ${name}` };
+      }
+    },
+    mkdir: {
+      description: 'Create a directory: mkdir <dirname>',
+      execute: (args) => {
+        const name = args[0];
+        if (!name) return { type: 'error', content: 'Usage: mkdir <dirname>' };
+        onFsCommand && onFsCommand({ action: 'createDir', name });
+        return { type: 'success', content: `Created directory ${name}` };
+      }
+    },
+    rm: {
+      description: 'Delete a file: rm <filename>',
+      execute: (args) => {
+        const name = args[0];
+        if (!name) return { type: 'error', content: 'Usage: rm <filename>' };
+        onFsCommand && onFsCommand({ action: 'delete', name });
+        return { type: 'success', content: `Deleted ${name}` };
+      }
+    },
+    mv: {
+      description: 'Rename/Move: mv <old> <new>',
+      execute: (args) => {
+        const [oldName, newName] = args;
+        if (!oldName || !newName) return { type: 'error', content: 'Usage: mv <old> <new>' };
+        onFsCommand && onFsCommand({ action: 'rename', oldName, newName });
+        return { type: 'success', content: `Renamed ${oldName} -> ${newName}` };
+      }
     },
     echo: {
       description: 'Echo text',
@@ -268,7 +304,7 @@ const IntegratedTerminal = ({ isOpen, onToggle }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="h-80 bg-black border-t border-monaco-border flex flex-col">
+    <div className="h-full bg-black border-t border-monaco-border flex flex-col min-h-0">
       {/* Terminal Header */}
       <div className="h-10 bg-monaco-sidebar border-b border-monaco-border flex items-center justify-between px-4">
         <div className="flex items-center space-x-2">
@@ -292,7 +328,7 @@ const IntegratedTerminal = ({ isOpen, onToggle }) => {
       </div>
 
       {/* Terminal Content */}
-      <div ref={terminalRef} className="flex-1 overflow-y-auto scrollbar-thin p-4 font-mono text-sm">
+      <div ref={terminalRef} className="flex-1 overflow-y-auto scrollbar-thin p-4 font-mono text-sm min-h-0">
         {history.map((entry, index) => (
           <div key={index} className="mb-1">
             <pre className={`whitespace-pre-wrap ${

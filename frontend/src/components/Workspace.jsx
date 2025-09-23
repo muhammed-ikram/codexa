@@ -185,7 +185,7 @@ const Workspace = () => {
   }
 
   return (
-    <div ref={workspaceRef} className="h-screen bg-gradient-to-br from-gray-900 to-black text-white flex flex-col">
+    <div ref={workspaceRef} className="min-h-screen h-screen bg-gradient-to-br from-gray-900 to-black text-white flex flex-col overflow-hidden">
       {/* Top Bar */}
       <div className="h-14 bg-gray-800/50 backdrop-blur-lg border-b border-gray-700 flex items-center justify-between px-4">
         <div className="flex items-center space-x-3">
@@ -225,7 +225,7 @@ const Workspace = () => {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden" style={{ minWidth: 0, width: '100%' }}>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden" style={{ minWidth: 0, width: '100%', height: 'calc(100vh - 56px)', marginBottom: 0, paddingBottom: 0 }}>
         {/* Code Editor */}
         <div className="flex flex-col min-h-0" style={{ width: codeEditorWidth, minWidth: 0, flexBasis: codeEditorWidth, flexGrow: 1 }}>
           <CodeEditor project={project} onProjectChange={(p) => updateProject(p)} />

@@ -370,16 +370,21 @@ const insertNodeAtParent = (nodes, parentPath, newNode) => {
 
 /* ----------------------------- Component ----------------------------- */
 
-const CodeEditor = () => {
+const CodeEditor = ({ project: currentProject = null, onProjectChange = () => {} }) => {
   const editorRef = useRef();
   const monacoRef = useRef();
   const toast = useToast();
   const memoryMonitor = useRef(new MemoryMonitor());
   const cleanupManager = useRef(new CleanupManager());
 
+  const storageKey = useMemo(() => {
+    const pid = currentProject?._id || currentProject?.id || 'default';
+    return `ide_project_v2_${pid}`;
+  }, [currentProject]);
+
   const [project, setProject] = useState(() => {
     try {
-      const saved = localStorage.getItem("ide_project_v2");
+      const saved = localStorage.getItem(storageKey) || localStorage.getItem("ide_project_v2");
       return saved ? JSON.parse(saved) : defaultProject;
     } catch (e) {
       return defaultProject;
@@ -406,7 +411,7 @@ const CodeEditor = () => {
   const [previewOpen, setPreviewOpen] = useState(true);
   const [outputOpen, setOutputOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState('general'); // Simple general panel
-  const [bottomPanelOpen, setBottomPanelOpen] = useState(true);
+  const [bottomPanelOpen, setBottomPanelOpen] = useState(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -422,12 +427,12 @@ const CodeEditor = () => {
     debounce((newProject) => {
       try {
         const serializable = JSON.parse(JSON.stringify(newProject, (k, v) => (k === "handle" ? undefined : v)));
-        localStorage.setItem("ide_project_v2", JSON.stringify(serializable));
+        localStorage.setItem(storageKey, JSON.stringify(serializable));
       } catch (e) {
         console.warn('Failed to save project to localStorage:', e);
       }
     }, 500),
-    []
+    [storageKey]
   );
 
   const debouncedContentUpdate = useCallback(
@@ -441,6 +446,40 @@ const CodeEditor = () => {
   useEffect(() => {
     debouncedProjectUpdate(project);
   }, [project, debouncedProjectUpdate]);
+
+  // Auto-open bottom panel whenever either Output or Preview is enabled
+  useEffect(() => {
+    if ((outputOpen || previewOpen) && !bottomPanelOpen) {
+      setBottomPanelOpen(true);
+    }
+  }, [outputOpen, previewOpen]);
+
+  // Reload per-project workspace when currentProject changes
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      let nextTree = saved ? JSON.parse(saved) : defaultProject;
+      // If no files exist for this project, scaffold defaults
+      if (!nextTree || nextTree.length === 0) {
+        const scaffold = [
+          { name: 'index.html', type: 'file', path: 'index.html', content: `<!doctype html>\n<html>\n  <head>\n    <meta charset=\"utf-8\"/>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n    <title>New Project</title>\n    <link rel=\"stylesheet\" href=\"style.css\"/>\n  </head>\n  <body>\n    <h1>Hello Codexa 👋</h1>\n    <p>Edit <code>script.js</code> and see changes live.</p>\n    <script src=\"script.js\"></script>\n  </body>\n</html>` },
+          { name: 'style.css', type: 'file', path: 'style.css', content: `body{font-family:ui-sans-serif,system-ui;line-height:1.5;margin:2rem;background:#0b1220;color:#e5e7eb}h1{color:#60a5fa}` },
+          { name: 'script.js', type: 'file', path: 'script.js', content: `document.addEventListener('DOMContentLoaded',()=>{console.log('🚀 Project ready!')});` }
+        ];
+        nextTree = scaffold;
+        try { localStorage.setItem(storageKey, JSON.stringify(scaffold)); } catch(_) {}
+      }
+      setProject(nextTree);
+      const files = collectAllFiles(nextTree);
+      const firstPath = files.length ? files[0].path : nextTree[0]?.path || "";
+      setSelectedPath(firstPath || "");
+      const firstNode = firstPath ? findNode(nextTree, firstPath) : null;
+      setValue(firstNode?.content || "");
+      setLanguage(firstNode ? extToLanguage(firstNode.name) : "javascript");
+    } catch (e) {
+      // ignore
+    }
+  }, [storageKey]);
 
   /* ------------------------- Memory Management ------------------------ */
   useEffect(() => {
@@ -1076,20 +1115,20 @@ ${jsContent}
   }, [allCssFiles]);
 
   const previewSrcDoc = useMemo(() => {
-    // If there's an index.html choose it and inline assets
+    // 1) If the currently selected file is an HTML file, prioritize it
+    const selectedNode = findNode(project, selectedPath);
+    if (selectedNode && selectedNode.name && selectedNode.name.toLowerCase().endsWith(".html")) {
+      return inlineAssetsInHtml(selectedNode.content || "");
+    }
+
+    // 2) Otherwise, if there's an index.html anywhere, use it as the main preview
     const indexFile = allHtmlFiles.find((f) => f.name.toLowerCase() === "index.html") || 
                      allHtmlFiles.find((f) => f.name.toLowerCase() === "index.htm");
     if (indexFile && indexFile.content) {
       return inlineAssetsInHtml(indexFile.content);
     }
 
-    // If selected is html return its content inlined
-    const selectedNode = findNode(project, selectedPath);
-    if (selectedNode && selectedNode.name && selectedNode.name.toLowerCase().endsWith(".html")) {
-      return inlineAssetsInHtml(selectedNode.content || "");
-    }
-
-    // If there is any html file, inline the first one
+    // 3) Otherwise, fallback to the first HTML file found in the tree
     const anyHtml = allHtmlFiles[0];
     if (anyHtml) return inlineAssetsInHtml(anyHtml.content || "");
 
@@ -1207,7 +1246,7 @@ ${jsContent}
   /* ----------------------------- Render UI ------------------------------ */
 
   return (
-    <div className="h-screen bg-monaco-bg text-monaco-text flex flex-col">
+    <div className="h-full bg-monaco-bg text-monaco-text flex flex-col">
       {/* Command Palette */}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
@@ -1255,6 +1294,15 @@ ${jsContent}
           <Button size="sm" onClick={handleSaveAll} variant="secondary" className="hidden sm:inline-block">
             Save All
           </Button>
+          <Tooltip label="Toggle Bottom Panel">
+            <IconButton 
+              size="sm" 
+              variant={bottomPanelOpen ? "ghost" : "primary"}
+              icon={<span className="text-lg">▾</span>} 
+              onClick={() => setBottomPanelOpen(v => !v)}
+              aria-label="toggle-bottom-panel"
+            />
+          </Tooltip>
           <Tooltip label="Toggle Terminal (Ctrl+`)">
             <IconButton 
               size="sm" 
@@ -1326,8 +1374,49 @@ ${jsContent}
 
             {/* Integrated Terminal - Responsive */}
             {isTerminalOpen && (
-              <div className="h-1/3 md:h-1/2 border-t border-monaco-border flex-shrink-0">
-                <IntegratedTerminal />
+              <div className="h-1/3 md:h-1/2 border-t border-monaco-border flex-shrink-0 min-h-0">
+                <IntegratedTerminal
+                  isOpen={true}
+                  onToggle={() => setIsTerminalOpen(false)}
+                  fileList={collectAllFiles(project).map(f => f.path)}
+                  onFsCommand={({ action, name, oldName, newName }) => {
+                    if (action === 'createFile') {
+                      const path = name;
+                      const content = CODE_SNIPPETS[extToLanguage(name)] || '';
+                      const newNode = { name, type: 'file', path, content, handle: null };
+                      setProject(prev => insertNodeAtParent(prev, '', newNode));
+                    } else if (action === 'createDir') {
+                      const path = name;
+                      const newNode = { name, type: 'folder', path, children: [], handle: null };
+                      setProject(prev => insertNodeAtParent(prev, '', newNode));
+                    } else if (action === 'delete') {
+                      setProject(prev => removeNodeByPath(prev, name));
+                    } else if (action === 'rename') {
+                      const path = oldName;
+                      const node = findNode(project, path);
+                      if (!node) return;
+                      const newPath = path.includes('/') ? path.replace(/[^/]*$/, newName) : newName;
+                      const rewrite = (nodes) => nodes.map(n => {
+                        if (n.path === path) {
+                          const updated = { ...n, name: newName, path: newPath };
+                          if (n.type === 'folder' && n.children) {
+                            const updateChildrenPaths = (children, oldPrefix, newPrefix) => children.map(c => {
+                              const childNewPath = c.path.replace(oldPrefix, newPrefix);
+                              const updatedChild = { ...c, path: childNewPath };
+                              if (c.type === 'folder') updatedChild.children = updateChildrenPaths(c.children || [], oldPrefix, newPrefix);
+                              return updatedChild;
+                            });
+                            updated.children = updateChildrenPaths(n.children || [], path + '/', newPath + '/');
+                          }
+                          return updated;
+                        }
+                        if (n.type === 'folder' && n.children) return { ...n, children: rewrite(n.children) };
+                        return n;
+                      });
+                      setProject(prev => rewrite(prev));
+                    }
+                  }}
+                />
               </div>
             )}
           </div>
@@ -1419,6 +1508,7 @@ ${jsContent}
                         <iframe
                           title="live-preview"
                           srcDoc={srcDoc}
+                          key={srcDoc.length}
                           className="w-full h-full border-0"
                           sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-scripts allow-same-origin"
                         />
@@ -1441,17 +1531,7 @@ ${jsContent}
           </div>
         )}
 
-        {/* Bottom Panel Collapsed State - Responsive */}
-        {!bottomPanelOpen && (
-          <div className="h-8 border-t border-monaco-border bg-monaco-sidebar flex items-center justify-center cursor-pointer hover:bg-monaco-hover transition-colors" onClick={() => setBottomPanelOpen(true)}>
-            <Tooltip label="Expand Output & Preview Panel">
-              <span className="text-sm text-monaco-text-secondary flex items-center space-x-2">
-                <span>▲</span>
-                <span className="hidden sm:inline">Output & Preview</span>
-              </span>
-            </Tooltip>
-          </div>
-        )}
+        {/* Collapsed state bar removed to avoid extra space; panel can be reopened via toolbar button above */}
       </div>
     </div>
   );
