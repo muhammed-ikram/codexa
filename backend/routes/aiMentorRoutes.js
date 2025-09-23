@@ -100,6 +100,55 @@ ${message}
   }
 });
 
+// POST /api/ai-mentor/stack/suggest
+router.post("/stack/suggest", verifyToken, async (req, res) => {
+  try {
+    const { title } = req.body || {};
+    if (!title || String(title).trim().length === 0) {
+      return res.status(400).json({ message: "Title is required" });
+    }
+
+    const system = `
+You generate concise, modern tech stacks for new software projects based on the title only.
+Return a short list (6-10 items) across frontend, backend, database, auth, styling/build, and hosting/realtime if relevant.
+Prefer widely-used, beginner-friendly, production-ready choices.
+Output strictly as a single JSON array of strings, no comments, no prose.`;
+
+    const user = `
+Project title: ${title}
+Return JSON array only.`;
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(`${system}\n\n${user}`);
+    const raw = (await result.response.text()).trim();
+
+    // Attempt to extract JSON array
+    let suggestions = [];
+    try {
+      const jsonStart = raw.indexOf('[');
+      const jsonEnd = raw.lastIndexOf(']');
+      const json = jsonStart !== -1 && jsonEnd !== -1 ? raw.slice(jsonStart, jsonEnd + 1) : raw;
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) suggestions = parsed.map(v => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+    } catch (_) {
+      // fallback: split by commas
+      suggestions = raw
+        .replace(/\n/g, ' ')
+        .split(',')
+        .map(s => s.replace(/[\[\]\"\']/g, '').trim())
+        .filter(Boolean);
+    }
+
+    // Basic sanitize and de-dup
+    const uniq = Array.from(new Set(suggestions)).slice(0, 12);
+
+    return res.json({ suggestions: uniq });
+  } catch (err) {
+    console.error('AI Mentor stack suggest error:', err);
+    return res.status(500).json({ message: 'Failed to suggest tech stack' });
+  }
+});
+
 module.exports = router;
 
 

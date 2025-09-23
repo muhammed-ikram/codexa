@@ -460,6 +460,8 @@ const Dashboard = () => {
   const [projects, setProjects] = useState([]);
   const [promptText, setPromptText] = useState("");
   const [techInput, setTechInput] = useState("");
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [showTechInput, setShowTechInput] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -666,9 +668,28 @@ const Dashboard = () => {
             </div>
           ) : (
             <div>
-              <p className="mb-2 text-gray-400">Suggested Tech Stacks:</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-gray-400">Suggested Tech Stacks:</p>
+                <button
+                  onClick={async () => {
+                    if (!promptText.trim()) return;
+                    try {
+                      setIsSuggesting(true);
+                      const res = await api.post('/ai-mentor/stack/suggest', { title: promptText });
+                      setAiSuggestions(res?.data?.suggestions || []);
+                    } catch (err) {
+                      console.error('Stack suggest failed', err);
+                    } finally {
+                      setIsSuggesting(false);
+                    }
+                  }}
+                  className="text-sm px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                >
+                  {isSuggesting ? 'Generating…' : 'Generate with AI'}
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2 mb-4">
-                {techSuggestions.map((tech, idx) => (
+                {(aiSuggestions.length ? aiSuggestions : techSuggestions).map((tech, idx) => (
                   <span
                     key={idx}
                     className="px-3 py-1 bg-gray-700 text-sm rounded-full cursor-pointer hover:bg-blue-500 hover:text-white"
