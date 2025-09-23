@@ -370,7 +370,7 @@ const insertNodeAtParent = (nodes, parentPath, newNode) => {
 
 /* ----------------------------- Component ----------------------------- */
 
-const CodeEditor = ({ project: currentProject = null, onProjectChange = () => {} }) => {
+const CodeEditor = ({ project: currentProject = null, onProjectChange = () => {}, onActiveFileChange = null }) => {
   const editorRef = useRef();
   const monacoRef = useRef();
   const toast = useToast();
@@ -528,6 +528,20 @@ const CodeEditor = ({ project: currentProject = null, onProjectChange = () => {}
       setLanguage(extToLanguage(node.name));
     }
   }, [selectedPath, project]);
+
+  // Notify parent about currently active file (path, language, content)
+  useEffect(() => {
+    if (typeof onActiveFileChange === 'function') {
+      const node = findNode(project, selectedPath);
+      onActiveFileChange({
+        path: selectedPath || '',
+        language: node ? extToLanguage(node.name) : language,
+        content: value || ''
+      });
+    }
+    // Do NOT include `project` as a dependency to avoid deep reference changes
+    // that can trigger unnecessary parent updates.
+  }, [onActiveFileChange, selectedPath, value, language]);
 
   /* ----------------------------- Editor mount ----------------------------- */
   const beforeMount = useCallback((monaco) => {

@@ -4,6 +4,129 @@ import api from '../utils/api';
 import ReactFlow, { MiniMap, Controls, Background, MarkerType } from 'reactflow';
 import 'reactflow/dist/style.css';
 
+// Lightweight renderer for Markdown-ish with lists, bold, and fenced code blocks + copy
+const RenderRichMessage = ({ text = '' }) => {
+  const segments = String(text).split(/```/g);
+
+  const renderInline = (str) => {
+    // Support **bold** and inline `code`
+    const parts = String(str).split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+    return parts.map((p, i) => {
+      if (p.startsWith('**') && p.endsWith('**')) {
+        return <strong key={i} className="font-semibold text-white">{p.slice(2, -2)}</strong>;
+      }
+      if (p.startsWith('`') && p.endsWith('`')) {
+        return <code key={i} className="px-1 py-0.5 bg-gray-800 rounded text-xs text-gray-200">{p.slice(1, -1)}</code>;
+      }
+      return <span key={i}>{p}</span>;
+    });
+  };
+
+  const renderPlainBlock = (block, keyBase) => {
+    const lines = String(block).split(/\r?\n/);
+    const elements = [];
+    let listBuffer = [];
+    let listType = null; // 'ol' | 'ul'
+
+    const flushList = () => {
+      if (listBuffer.length === 0) return;
+      if (listType === 'ol') {
+        elements.push(
+          <ol key={`ol-${keyBase}-${elements.length}`} className="list-decimal pl-5 space-y-1">
+            {listBuffer.map((item, idx) => <li key={idx} className="text-sm leading-7">{renderInline(item)}</li>)}
+          </ol>
+        );
+      } else if (listType === 'ul') {
+        elements.push(
+          <ul key={`ul-${keyBase}-${elements.length}`} className="list-disc pl-5 space-y-1">
+            {listBuffer.map((item, idx) => <li key={idx} className="text-sm leading-7">{renderInline(item)}</li>)}
+          </ul>
+        );
+      }
+      listBuffer = [];
+      listType = null;
+    };
+
+    for (const line of lines) {
+      const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
+      const ulMatch = line.match(/^\s*[-*]\s+(.*)$/);
+      const headingMatch = line.match(/^\s*#{1,6}\s+(.*)$/);
+
+      if (olMatch) {
+        const content = olMatch[2];
+        if (listType && listType !== 'ol') flushList();
+        listType = 'ol';
+        listBuffer.push(content);
+        continue;
+      }
+      if (ulMatch) {
+        const content = ulMatch[1];
+        if (listType && listType !== 'ul') flushList();
+        listType = 'ul';
+        listBuffer.push(content);
+        continue;
+      }
+
+      // End any list when hitting a non-list line
+      if (listType) flushList();
+
+      if (headingMatch) {
+        elements.push(
+          <p key={`h-${keyBase}-${elements.length}`} className="text-sm leading-7 font-bold text-white mt-2">
+            {renderInline(headingMatch[1])}
+          </p>
+        );
+        continue;
+      }
+
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        elements.push(<div key={`sp-${keyBase}-${elements.length}`} className="h-2" />);
+      } else {
+        elements.push(
+          <p key={`p-${keyBase}-${elements.length}`} className="text-sm leading-7">
+            {renderInline(line)}
+          </p>
+        );
+      }
+    }
+
+    if (listType) flushList();
+    return elements;
+  };
+
+  return (
+    <div className="space-y-3">
+      {segments.map((seg, idx) => {
+        if (idx % 2 === 0) {
+          return seg ? (
+            <div key={`t-${idx}`} className="space-y-2">
+              {renderPlainBlock(seg, idx)}
+            </div>
+          ) : null;
+        }
+        const firstLineBreak = seg.indexOf('\n');
+        const lang = firstLineBreak !== -1 ? seg.slice(0, firstLineBreak).trim() : '';
+        const code = firstLineBreak !== -1 ? seg.slice(firstLineBreak + 1) : seg;
+        const handleCopy = async () => {
+          try {
+            await navigator.clipboard.writeText(code);
+          } catch (_) {}
+        };
+        return (
+          <div key={`c-${idx}`} className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-1.5 text-xs bg-gray-800 border-b border-gray-700">
+              <span className="uppercase tracking-wider text-gray-300">{lang || 'code'}</span>
+              <button onClick={handleCopy} className="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-100">Copy</button>
+            </div>
+            <pre className="p-3 overflow-auto text-xs whitespace-pre-wrap"><code>{code}</code></pre>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // --- MilestoneList (unchanged behavior but uses onMilestoneUpdate to persist) ---
 const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
   const [checkedItems, setCheckedItems] = useState({});
@@ -103,8 +226,12 @@ const MentorChat = ({ projectId, messages = [], onSendMessageRemote }) => {
         ) : (
           messages.map(m => (
             <div key={m.id} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-xs lg:max-w-md px-5 py-3 rounded-2xl ${m.sender === 'user' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'}`}>
-                <p className="text-sm">{m.content}</p>
+              <div className={`max-w-xs lg:max-w-2xl px-5 py-3 rounded-2xl ${m.sender === 'user' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-none' : 'bg-gray-700 text-gray-100 rounded-bl-none'} whitespace-pre-wrap`}>
+                {m.sender === 'bot' ? (
+                  <RenderRichMessage text={m.content} />
+                ) : (
+                  <p className="text-sm">{m.content}</p>
+                )}
                 <p className="text-xs mt-2 opacity-70">{m.timestamp}</p>
               </div>
             </div>
@@ -377,7 +504,7 @@ const AnalysisComponent = ({ analyticsData = null }) => {
 };
 
 // --- Main AiMentorPanel ---
-const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGeneration = null }) => {
+const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGeneration = null, activeFile = null }) => {
   const [activeTab, setActiveTab] = useState('ai-monitor');
   const [aiMonitorSubTab, setAiMonitorSubTab] = useState('chat');
   const [chatMessages, setChatMessages] = useState([]);
@@ -415,8 +542,11 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     setChatMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
     try {
-      const res = await api.post(`/projects/${projectId}/chat`, { message });
-      // Expect backend to return { aiMessage, savedMessage? } or appended message
+      const res = await api.post(`/ai-mentor/${projectId}/chat`, {
+        message,
+        openFile: activeFile || null,
+      });
+      // Expect backend to return { aiMessage }
       if (res?.data?.aiMessage) {
         const botMessage = {
           id: Date.now() + 1,
@@ -425,9 +555,6 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
           timestamp: new Date().toLocaleTimeString(),
         };
         setChatMessages(prev => [...prev, botMessage]);
-      } else if (res?.data?.message) {
-        // fallback: if backend returns full message object
-        setChatMessages(prev => [...prev, res.data.message]);
       }
     } catch (err) {
       console.error('Chat error', err);

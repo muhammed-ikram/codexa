@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const authRoutes = require("./routes/authRoutes");
 const chatRoutes = require("./routes/chatbot");
 const projectRoutes = require("./routes/projectRoutes");
+const aiMentorRoutes = require("./routes/aiMentorRoutes");
 
 const app = express();
 
@@ -22,6 +23,7 @@ require("./db");
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/ai-mentor", aiMentorRoutes);
 
 app.listen(5000, () => {
   console.log("Server running on port 5000");

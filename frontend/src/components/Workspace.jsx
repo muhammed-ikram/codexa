@@ -1,6 +1,6 @@
 
 // src/components/Workspace.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CodeEditor from './CodeEditor';
 import AiMentorPanel from './AiMentorPanel';
@@ -27,6 +27,26 @@ const Workspace = () => {
   const [isResizing, setIsResizing] = useState(null);
   const [showMentorPanel, setShowMentorPanel] = useState(false);
   const workspaceRef = useRef(null);
+  const [activeFile, setActiveFile] = useState({ path: '', language: '', content: '' });
+
+  // Stable callback to avoid triggering child effects every render
+  const handleActiveFileChange = useCallback((file) => {
+    setActiveFile((prev) => {
+      if (
+        prev &&
+        prev.path === (file?.path || '') &&
+        prev.language === (file?.language || '') &&
+        prev.content === (file?.content || '')
+      ) {
+        return prev; // no change -> avoid re-render loop
+      }
+      return {
+        path: file?.path || '',
+        language: file?.language || '',
+        content: file?.content || ''
+      };
+    });
+  }, []);
 
   // Fetch project data by id
   const fetchProjectData = async (id) => {
@@ -228,7 +248,7 @@ const Workspace = () => {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden" style={{ minWidth: 0, width: '100%', height: 'calc(100vh - 56px)', marginBottom: 0, paddingBottom: 0 }}>
         {/* Code Editor */}
         <div className="flex flex-col min-h-0" style={{ width: codeEditorWidth, minWidth: 0, flexBasis: codeEditorWidth, flexGrow: 1 }}>
-          <CodeEditor project={project} onProjectChange={(p) => updateProject(p)} />
+          <CodeEditor project={project} onProjectChange={(p) => updateProject(p)} onActiveFileChange={handleActiveFileChange} />
         </div>
 
         {/* Resize handle for code editor */}
@@ -241,6 +261,7 @@ const Workspace = () => {
           <AiMentorPanel
             project={project}
             onProjectUpdate={(updated) => updateProject(updated, true)}
+            activeFile={activeFile}
             requestAIGeneration={async (action) => {
               // wrapper - call backend to generate content and refresh project
               try {
@@ -273,6 +294,7 @@ const Workspace = () => {
             <AiMentorPanel
               project={project}
               onProjectUpdate={(updated) => updateProject(updated, true)}
+              activeFile={activeFile}
               requestAIGeneration={async (action) => {
                 const res = await api.post(`/projects/${projectId}/generate`, { action });
                 if (res?.data?.project) {
