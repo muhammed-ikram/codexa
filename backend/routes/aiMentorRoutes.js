@@ -51,6 +51,14 @@ Formatting rules:
 - Use short sections with clear headings and numbered steps.
 - If you include code (only when asked), wrap it in fenced blocks with the correct language, like \n\`\`\`js\n...\n\`\`\`\n so the UI can render a copy button.
 - Keep responses focused, practical, and actionable.
+
+Teaching requirement:
+- From the opened file's content and the project context, infer the major concepts, libraries, or primitives the student will use to complete the task (e.g., JWT authentication, REST routes, middleware, React hooks/state, CSS Flexbox/Grid, async/await, form validation, database queries, etc.).
+- For each relevant major concept (limit to the 2–3 most important), add a short "Concept Primer" section that explains:
+  1) What it is and why it matters here
+  2) How to apply it specifically in this file/context
+  3) Common pitfalls
+- Do NOT include code in the primer unless the student explicitly asked for code; otherwise describe the steps and where they would go.
 `;
 
     const projectContext = `
