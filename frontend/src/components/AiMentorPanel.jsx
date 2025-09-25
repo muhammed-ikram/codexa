@@ -661,25 +661,32 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
         progress
       });
       
-      // Only update local state if backend save was successful
+      // Always update local state with the calculated progress
       if (res?.data?.project) {
         // Use the project data from backend response
         onProjectUpdate(res.data.project);
       } else {
-        // Fallback to local update
+        // Fallback to local update with calculated progress
         const updatedProject = {
           ...project,
           milestones: updatedMilestones,
           completedMilestones: completedCount,
-          progress
+          progress: progress // Use the calculated progress
         };
-        onProjectUpdate(updatedProject, true);
+        onProjectUpdate(updatedProject);
       }
     } catch (err) {
       console.error('Failed to save milestones:', err);
       
-      // Don't update local state if backend save failed
-      // This prevents state inconsistencies that might cause reloads
+      // Still update local state with calculated progress even if backend fails
+      // This ensures UI remains responsive
+      const updatedProject = {
+        ...project,
+        milestones: updatedMilestones,
+        completedMilestones: completedCount,
+        progress: progress
+      };
+      onProjectUpdate(updatedProject);
     }
   };
 
@@ -757,9 +764,9 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
             <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
               <h4 className="text-lg font-semibold text-white mb-2">Progress</h4>
               <div className="w-full bg-gray-600 rounded-full h-2.5">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full" style={{ width: `${project?.progress || 0}%` }} />
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${project?.progress || 0}%` }} />
               </div>
-              <div className="text-sm text-gray-300 mt-2">{project?.progress || 0}% complete</div>
+              <div className="text-sm text-gray-300 mt-2">{project?.progress || 0}% complete ({project?.completedMilestones || 0}/{project?.milestones?.length || 0} milestones)</div>
             </div>
             <MilestoneList milestones={project?.milestones || []} onMilestoneUpdate={handleMilestoneUpdate} />
           </div>

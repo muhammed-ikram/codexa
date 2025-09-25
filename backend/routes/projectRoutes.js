@@ -237,8 +237,14 @@ router.patch('/:id', verifyToken, async (req, res) => {
     if (typeof description === 'string') project.description = description;
     if (Array.isArray(blueprint)) project.blueprint = blueprint;
 
-    // Recompute booleans
+    // Recompute booleans and ensure consistency
     project.isCompleted = project.milestones.length > 0 && project.completedMilestones === project.milestones.length;
+    
+    // Ensure progress is consistent with completed milestones
+    if (project.milestones.length > 0) {
+      const calculatedProgress = Math.round((project.completedMilestones / project.milestones.length) * 100);
+      project.progress = calculatedProgress;
+    }
 
     await project.save();
     res.json({ message: 'Project updated', project });
