@@ -474,6 +474,16 @@ const AnalysisComponent = ({ analyticsData = null }) => {
 
   return (
     <div className="p-5 space-y-5 h-full overflow-y-auto bg-gradient-to-b from-gray-800/50 to-gray-900/50">
+      {analyticsData?.user && (
+        <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
+          <h4 className="font-bold text-white mb-2">Personalized Context</h4>
+          <div className="text-sm text-gray-300 flex flex-wrap gap-4">
+            <span><span className="text-gray-400">User:</span> <span className="text-white font-medium">{analyticsData.user.username}</span></span>
+            <span><span className="text-gray-400">Role:</span> <span className="text-white font-medium capitalize">{analyticsData.user.role}</span></span>
+            <span><span className="text-gray-400">Projects:</span> <span className="text-white font-medium">{analyticsData.user.projects}</span></span>
+          </div>
+        </div>
+      )}
       <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
         <h4 className="font-bold text-white mb-4">Code Quality Metrics</h4>
         <div className="space-y-4">
