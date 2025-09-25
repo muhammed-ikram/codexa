@@ -85,9 +85,68 @@ ${message}
 
     const prompt = `${guidance}\n\n${projectContext}\n\n${fileContext}\n\n${userQuery}`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(prompt);
-    const aiText = (await result.response.text()).trim();
+    // Use Amazon Bedrock for AI Mentor chat (keeps the same prompt and response contract)
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
+    let aiText = '';
+
+    if (bedrockApiKey) {
+      try {
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const resp = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: prompt }] } ],
+            inferenceConfig: { temperature: 0.4 }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${bedrockApiKey}`
+            },
+            timeout: 30000
+          }
+        );
+        aiText = (resp?.data?.output?.message?.content?.[0]?.text || resp?.data?.content || '').trim();
+      } catch (apiErr) {
+        // Fallback to SDK credentials if API key path fails
+        try {
+          const client = new BedrockRuntimeClient({
+            region,
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+              sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+            },
+          });
+          const sdkResp = await client.send(new ConverseCommand({
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: prompt }] } ],
+            inferenceConfig: { temperature: 0.4 }
+          }));
+          aiText = (sdkResp?.output?.message?.content?.[0]?.text || '').trim();
+        } catch (sdkErr) {
+          throw apiErr;
+        }
+      }
+    } else {
+      // SDK-only path
+      const client = new BedrockRuntimeClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+          sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+        },
+      });
+      const sdkResp = await client.send(new ConverseCommand({
+        modelId: 'amazon.nova-pro-v1:0',
+        messages: [ { role: 'user', content: [{ text: prompt }] } ],
+        inferenceConfig: { temperature: 0.4 }
+      }));
+      aiText = (sdkResp?.output?.message?.content?.[0]?.text || '').trim();
+    }
 
     if (!aiText) {
       return res.status(500).json({ message: 'Empty response from AI' });

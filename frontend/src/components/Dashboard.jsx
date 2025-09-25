@@ -676,9 +676,24 @@ const Dashboard = () => {
                     try {
                       setIsSuggesting(true);
                       const res = await api.post('/ai-mentor/stack/suggest', { title: promptText });
-                      setAiSuggestions(res?.data?.suggestions || []);
+                      const serverSuggestions = Array.isArray(res?.data?.suggestions) ? res.data.suggestions : [];
+                      const mandatory = ['HTML', 'CSS', 'JavaScript', 'React', 'MongoDB'];
+                      // Merge while removing case-insensitive duplicates, mandatory first
+                      const seen = new Set(mandatory.map(s => s.toLowerCase()));
+                      const merged = [...mandatory];
+                      for (const item of serverSuggestions) {
+                        const label = String(item);
+                        const key = label.toLowerCase();
+                        if (!seen.has(key)) {
+                          seen.add(key);
+                          merged.push(label);
+                        }
+                      }
+                      setAiSuggestions(merged);
                     } catch (err) {
                       console.error('Stack suggest failed', err);
+                      // Fallback to mandatory if server call fails
+                      setAiSuggestions(['HTML', 'CSS', 'JavaScript', 'React', 'MongoDB']);
                     } finally {
                       setIsSuggesting(false);
                     }
