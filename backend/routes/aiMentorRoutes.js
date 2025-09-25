@@ -1,6 +1,7 @@
 const express = require("express");
 const { verifyToken } = require("../middlewares/authMiddleware");
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 const Project = require("../models/Project");
 require("dotenv").config();
 
@@ -149,6 +150,94 @@ Return JSON array only.`;
   }
 });
 
+
+
+// POST /api/ai-mentor/learning/suggest (OpenAI)
+router.post("/learning/suggest", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Derive lightweight user context from recent projects
+    let projects = [];
+    try {
+      projects = await Project.find({}).sort({ updatedAt: -1 }).limit(10).lean();
+    } catch (_) {}
+
+    const techCounts = {};
+    (projects || []).forEach(p => (p.techStack || []).forEach(t => {
+      const key = typeof t === 'string' ? t : (t?.name || t?.label || 'Tech');
+      techCounts[key] = (techCounts[key] || 0) + 1;
+    }));
+    const topTech = Object.entries(techCounts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k])=>k);
+
+    const context = {
+      topTech,
+      projects: (projects || []).map(p => ({ title: p.title || p.name, techStack: p.techStack || [], progress: p.progress || 0 }))
+    };
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ message: 'Missing OPENAI_API_KEY' });
+
+    const systemMsg = 'You are a helpful learning curator. Return valid JSON only, no prose.';
+    const userPrompt = `
+Given this user's recent projects and most-used technologies, recommend up-to-date learning resources (YouTube videos, blogs, docs, courses).
+Focus on technologies the user likely needs to strengthen. Provide 6–10 curated items grouped by technology/topic with concise titles and links.
+Avoid generic content; prioritize high-quality, beginner-to-intermediate friendly materials.
+Output JSON exactly as: { "groups": [ { "topic": string, "items": [ { "title": string, "url": string, "type": "video"|"blog"|"docs"|"course", "reason": string } ] } ] }
+
+User context (approx.):
+${JSON.stringify(context)}
+`;
+
+    let content = '';
+    try {
+      const resp = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o-mini',
+          temperature: 0.2,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: userPrompt }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          }
+        }
+      );
+      content = resp?.data?.choices?.[0]?.message?.content || '';
+    } catch (openAiErr) {
+      // Fallback to Gemini if OpenAI is unavailable or free tier blocked
+      try {
+        if (!process.env.GEMINI_API_KEY_2) throw openAiErr;
+        const genModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const geminiPrompt = `${systemMsg}\n\n${userPrompt}`;
+        const gemRes = await genModel.generateContent(geminiPrompt);
+        content = (await gemRes.response.text()) || '';
+      } catch (_) {
+        // If fallback also fails, rethrow original
+        throw openAiErr;
+      }
+    }
+    let data;
+    try {
+      const start = content.indexOf('{');
+      const end = content.lastIndexOf('}');
+      const json = start !== -1 && end !== -1 ? content.slice(start, end + 1) : content;
+      data = JSON.parse(json);
+    } catch (_) {
+      data = { groups: [] };
+    }
+
+    return res.json({ suggestions: data });
+  } catch (err) {
+    console.error('AI Mentor learning suggest error:', err?.response?.data || err);
+    return res.status(500).json({ message: 'Failed to fetch learning suggestions. Ensure your API key has access or try again later.' });
+  }
+});
+
 module.exports = router;
-
-

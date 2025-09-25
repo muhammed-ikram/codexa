@@ -18,6 +18,7 @@ import LaunchAdvisorPage from "./pages/LaunchAdvisorPage";
 import Unauthorized from "./pages/Unauthorized";
 import PreviewPage from "./pages/PreviewPage";
 import CodexaAssistance from "./pages/CodexaAssistance";
+import LearningSuggestions from "./pages/LearningSuggestions";
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
             <Route path="/launch-advisor" element={<LaunchAdvisorPage />} />
             <Route path="/launch-advisor/:projectId" element={<LaunchAdvisor />} />
             <Route path="/career-hub" element={<CareerHub />} />
+            <Route path="/learning-suggestions" element={<LearningSuggestions />} />
           </Route>
         </Routes>
       </div>
