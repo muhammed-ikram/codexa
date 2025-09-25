@@ -81,8 +81,8 @@ const Workspace = () => {
       }
     } catch (err) {
       console.error('Failed to persist project update:', err);
-      // optional: re-fetch to ensure consistency
-      fetchProjectData(projectId);
+      // DO NOT call fetchProjectData - it causes reloads
+      // Just log the error and keep the optimistic update
     }
   };
 

@@ -170,6 +170,7 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate, onProgressChange })
       // Reduced minimum interval for more responsive updates
       if (now - lastUpdateRef.current > 100) {
         lastUpdateRef.current = now;
+        console.log('Debounced milestone update:', progress, newChecked);
         if (onMilestoneUpdate) {
           onMilestoneUpdate(progress, newChecked);
         }
@@ -597,11 +598,13 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
 
   const projectId = project?._id || project?.id;
 
-  // Initialize local progress from project
+  // Initialize local progress from project (only when project changes)
   useEffect(() => {
-    setLocalProgress(project?.progress || 0);
-    setLocalCompleted(project?.completedMilestones || 0);
-  }, [project?.progress, project?.completedMilestones]);
+    if (project) {
+      setLocalProgress(project.progress || 0);
+      setLocalCompleted(project.completedMilestones || 0);
+    }
+  }, [project?._id, project?.progress, project?.completedMilestones]);
 
   // Handle immediate progress updates from milestone changes (UI only)
   const handleProgressChange = useCallback((progress, completed) => {
@@ -694,15 +697,16 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
 
   // Milestone update -> persist to backend (single source of truth)
   const handleMilestoneUpdate = useCallback(async (progress, checkedItems) => {
+    console.log('handleMilestoneUpdate called:', progress, checkedItems);
     if (!projectId) {
       console.log('No projectId, skipping milestone update');
       return;
     }
     
     // Build updated milestones array from project.milestones using checkedItems
-    const updatedMilestones = (project.milestones || []).map(m => {
-      // Ensure milestone has an ID
-      const milestoneId = m.id || `milestone-${Math.random().toString(36).substr(2, 9)}`;
+    const updatedMilestones = (project.milestones || []).map((m, index) => {
+      // Ensure milestone has a stable ID
+      const milestoneId = m.id || `milestone-${index + 1}`;
       return {
         ...m,
         id: milestoneId,
@@ -720,6 +724,7 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
       return;
     }
 
+    console.log('Updating project state immediately');
     // IMMEDIATELY update project state for responsive UI
     const updatedProject = {
       ...project,
@@ -731,11 +736,13 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
 
     // Then save to server for persistence (fire and forget)
     try {
+      console.log('Saving to backend...');
       await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
         completedMilestones: completedCount,
         progress
       });
+      console.log('Backend save successful');
     } catch (err) {
       console.error('Failed to save milestones:', err);
       // Could implement retry logic or show error notification here

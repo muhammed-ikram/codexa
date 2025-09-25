@@ -24,7 +24,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.log('API Error:', error.response?.status, error.response?.data, error.config?.url);
     if (error.response?.status === 401) {
+      console.log('401 Error - redirecting to login');
       // Token expired or invalid, clear it and redirect to login
       localStorage.removeItem("token");
       // Use a more gentle redirect that doesn't cause full page reload
