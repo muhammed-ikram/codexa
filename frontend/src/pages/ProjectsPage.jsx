@@ -275,7 +275,8 @@ const ProjectsPage = () => {
 
       // 2) Try absolute backend URL with credentials (cookie auth)
       try {
-        const res = await axios.get("http://localhost:5000/api/projects", {
+        const backendUrl = import.meta.env.VITE_API_URL || "https://codexa-api.onrender.com/api";
+        const res = await axios.get(`${backendUrl}/projects`, {
           withCredentials: true,
         });
         if (mounted && res?.data?.projects) {
@@ -284,7 +285,7 @@ const ProjectsPage = () => {
           return;
         }
       } catch (err) {
-        console.warn("axios GET http://localhost:5000/api/projects (withCredentials) failed:", err?.response?.status || err.message);
+        console.warn("axios GET backend URL (withCredentials) failed:", err?.response?.status || err.message);
       }
 
       // 3) Try relative /api/projects with credentials (if you proxy /api -> backend)
@@ -303,7 +304,8 @@ const ProjectsPage = () => {
       try {
         const token = localStorage.getItem("token") || getCookie("token");
         if (token) {
-          const res = await axios.get("http://localhost:5000/api/projects", {
+          const backendUrl = import.meta.env.VITE_API_URL || "https://codexa-api.onrender.com/api";
+          const res = await axios.get(`${backendUrl}/projects`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (mounted && res?.data?.projects) {
