@@ -128,7 +128,7 @@ const RenderRichMessage = ({ text = '' }) => {
 };
 
 // --- MilestoneList (optimized to prevent reloads) ---
-const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
+const MilestoneList = ({ milestones = [], onMilestoneUpdate, onProgressChange }) => {
   const [checkedItems, setCheckedItems] = useState({});
   const updateTimeoutRef = useRef(null);
   const lastUpdateRef = useRef(0);
@@ -141,7 +141,13 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
       initialChecked[milestoneId] = m.completed || false;
     });
     setCheckedItems(initialChecked);
-  }, [milestones]);
+    
+    // Calculate initial progress and notify parent
+    const total = milestones.length;
+    const completed = Object.values(initialChecked).filter(Boolean).length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    if (onProgressChange) onProgressChange(progress, completed);
+  }, [milestones, onProgressChange]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -158,17 +164,17 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
       clearTimeout(updateTimeoutRef.current);
     }
     
-    // Debounce updates to prevent rapid successive calls
+    // Shorter debounce for better responsiveness
     updateTimeoutRef.current = setTimeout(() => {
       const now = Date.now();
-      // Only update if enough time has passed since last update
-      if (now - lastUpdateRef.current > 500) {
+      // Reduced minimum interval for more responsive updates
+      if (now - lastUpdateRef.current > 100) {
         lastUpdateRef.current = now;
         if (onMilestoneUpdate) {
           onMilestoneUpdate(progress, newChecked);
         }
       }
-    }, 300);
+    }, 100);
   }, [onMilestoneUpdate]);
 
   const handleCheck = useCallback((id, event) => {
@@ -185,9 +191,12 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
     const completed = Object.values(newChecked).filter(Boolean).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    // Use debounced update instead of immediate update
+    // Update progress immediately for responsive UI
+    if (onProgressChange) onProgressChange(progress, completed);
+
+    // Use debounced update for backend persistence
     debouncedUpdate(progress, newChecked);
-  }, [checkedItems, milestones.length, debouncedUpdate]);
+  }, [checkedItems, milestones.length, debouncedUpdate, onProgressChange]);
 
   return (
     <div className="p-5 space-y-5 bg-gradient-to-b from-gray-800/50 to-gray-900/50 animate-fade-in h-full overflow-y-auto">
@@ -582,8 +591,22 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
   const [isTyping, setIsTyping] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [localProgress, setLocalProgress] = useState(0);
+  const [localCompleted, setLocalCompleted] = useState(0);
 
   const projectId = project?._id || project?.id;
+
+  // Initialize local progress from project
+  useEffect(() => {
+    setLocalProgress(project?.progress || 0);
+    setLocalCompleted(project?.completedMilestones || 0);
+  }, [project?.progress, project?.completedMilestones]);
+
+  // Handle immediate progress updates from milestone changes
+  const handleProgressChange = useCallback((progress, completed) => {
+    setLocalProgress(progress);
+    setLocalCompleted(completed);
+  }, []);
 
   // Load chat history when project changes
   useEffect(() => {
@@ -684,11 +707,11 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     });
     const completedCount = Object.values(checkedItems).filter(Boolean).length;
 
-    // Only update if there's a meaningful change
+    // Only update if there's a meaningful change (more lenient)
     const currentProgress = project.progress || 0;
     const currentCompleted = project.completedMilestones || 0;
     
-    if (Math.abs(progress - currentProgress) < 1 && completedCount === currentCompleted) {
+    if (Math.abs(progress - currentProgress) < 0.1 && completedCount === currentCompleted) {
       console.log('No significant change, skipping update');
       return;
     }
@@ -786,11 +809,15 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
             <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
               <h4 className="text-lg font-semibold text-white mb-2">Progress</h4>
               <div className="w-full bg-gray-600 rounded-full h-2.5">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${project?.progress || 0}%` }} />
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${localProgress}%` }} />
               </div>
-              <div className="text-sm text-gray-300 mt-2">{project?.progress || 0}% complete ({project?.completedMilestones || 0}/{project?.milestones?.length || 0} milestones)</div>
+              <div className="text-sm text-gray-300 mt-2">{localProgress}% complete ({localCompleted}/{project?.milestones?.length || 0} milestones)</div>
             </div>
-            <MilestoneList milestones={project?.milestones || []} onMilestoneUpdate={handleMilestoneUpdate} />
+            <MilestoneList 
+              milestones={project?.milestones || []} 
+              onMilestoneUpdate={handleMilestoneUpdate}
+              onProgressChange={handleProgressChange}
+            />
           </div>
         )}
       </div>
