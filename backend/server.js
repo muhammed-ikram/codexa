@@ -11,10 +11,11 @@ require('dotenv').config();
 const app = express();
 app.set('trust proxy', 1);
 
-// CORS: allow Render or configured origin in production; allow localhost in dev
+// CORS: allow Vercel frontend, Render, and configured origins
 const allowedOrigins = [
   process.env.FRONTEND_ORIGIN,
   process.env.FRONTEND_URL,
+  'https://codexa-ochre.vercel.app', // Your Vercel frontend
   'http://localhost:5173',
   'http://127.0.0.1:5173'
 ].filter(Boolean);
@@ -24,15 +25,28 @@ app.use(cors({
     // allow non-browser or same-origin requests
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    // allow Vercel preview deploys wildcard e.g., https://*.vercel.app
+    if (/^https?:\/\/[^\.]+\.vercel\.app$/.test(origin)) return callback(null, true);
     // allow Render preview deploys wildcard e.g., https://*.onrender.com
     if (/^https?:\/\/[^\.]+\.onrender\.com$/.test(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(cookieParser());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // connect to DB
 require("./db");
