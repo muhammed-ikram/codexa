@@ -530,7 +530,8 @@ const BlueprintFlow = ({ edges = [] }) => {
 
 // --- AnalysisComponent (unchanged but fetchable) ---
 const AnalysisComponent = ({ analyticsData = null }) => {
-  if (!analyticsData) {
+  if (!analyticsData) { // TODO: remove this after analytics is implemented
+
     return (
       <div className="p-5 space-y-5 h-full overflow-y-auto bg-gradient-to-b from-gray-800/50 to-gray-900/50">
         <div className="text-gray-400 text-center py-12">
