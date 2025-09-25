@@ -607,7 +607,15 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
   const handleProgressChange = useCallback((progress, completed) => {
     setLocalProgress(progress);
     setLocalCompleted(completed);
-  }, []);
+    
+    // Immediately update the project state so other components see the change
+    const updatedProject = {
+      ...project,
+      progress: progress,
+      completedMilestones: completed
+    };
+    onProjectUpdate(updatedProject);
+  }, [project, onProjectUpdate]);
 
   // Load chat history when project changes
   useEffect(() => {
@@ -717,7 +725,7 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
       return;
     }
 
-    // Save to server first, then update local state only once
+    // Save to server for persistence
     try {
       const res = await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
@@ -725,10 +733,13 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
         progress
       });
       
-      // Only update local state if backend save was successful
+      // Only update if backend response has different data than what we already have
       if (res?.data?.project) {
-        // Use the project data from backend response
-        onProjectUpdate(res.data.project);
+        const backendProject = res.data.project;
+        // Check if backend data differs from current state
+        if (backendProject.progress !== progress || backendProject.completedMilestones !== completedCount) {
+          onProjectUpdate(backendProject);
+        }
       }
     } catch (err) {
       console.error('Failed to save milestones:', err);
