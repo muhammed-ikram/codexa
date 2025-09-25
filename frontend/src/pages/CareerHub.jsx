@@ -36,7 +36,7 @@ const SkillReport = ({ skillsData }) => {
 };
 
 // MockInterviewChat Component
-const MockInterviewChat = ({ onGenerateQuestion }) => {
+const MockInterviewChat = ({ onGenerateQuestion, onEvaluateAnswer, currentQuestion }) => {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -48,7 +48,7 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
   const [userInput, setUserInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (userInput.trim() === '') return;
     
     // Add user message
@@ -60,7 +60,24 @@ const MockInterviewChat = ({ onGenerateQuestion }) => {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const answerText = userInput;
     setUserInput('');
+
+    // If we have a current question, evaluate answer
+    if (onEvaluateAnswer && currentQuestion && currentQuestion.question) {
+      try {
+        const result = await onEvaluateAnswer(answerText);
+        if (result) {
+          const aiEval = {
+            id: (messages.length + 2),
+            sender: 'ai',
+            content: result,
+            timestamp: new Date().toLocaleTimeString()
+          };
+          setMessages(prev => [...prev, aiEval]);
+        }
+      } catch (_) {}
+    }
   };
 
   const handleGenerateQuestion = async () => {
@@ -190,16 +207,41 @@ const CareerHub = () => {
   const [jobLoading, setJobLoading] = useState(false);
   const [jobError, setJobError] = useState('');
 
-  // Mock function to generate interview questions
+  // Generate question via backend
+  const [currentQuestion, setCurrentQuestion] = useState(null);
   const generateInterviewQuestion = async () => {
-    const questions = [
-      "Explain the difference between state and props in React.",
-      "How would you optimize a React application?",
-      "Describe a challenging bug you fixed.",
-      "What are the advantages of React hooks?"
-    ];
-    
-    return questions[Math.floor(Math.random() * questions.length)];
+    try {
+      const res = await api.get('/ai-mentor/interview/question');
+      const data = res?.data;
+      if (data && data.question) {
+        setCurrentQuestion(data);
+        return data.question;
+      }
+      return 'Unable to generate a question right now.';
+    } catch (err) {
+      return 'Unable to generate a question right now.';
+    }
+  };
+
+  const evaluateAnswer = async (answerText) => {
+    try {
+      const payload = {
+        topic: currentQuestion?.topic || 'General',
+        question: currentQuestion?.question || '',
+        answer: answerText || ''
+      };
+      const res = await api.post('/ai-mentor/interview/evaluate', payload);
+      const data = res?.data;
+      if (typeof data?.correct === 'boolean') {
+        if (data.correct) {
+          return `✅ Correct. ${data.feedback || ''}`.trim();
+        }
+        return `❌ Incorrect. ${data.feedback || ''}${data.correctAnswer ? `\nCorrect answer: ${data.correctAnswer}` : ''}`.trim();
+      }
+      return 'Unable to evaluate the answer.';
+    } catch (err) {
+      return 'Evaluation failed. Please try again.';
+    }
   };
 
   // Fetch jobs dynamically based on top skills using Remotive API (no key required)
@@ -349,7 +391,7 @@ const CareerHub = () => {
             {/* Mock Interview */}
             <div>
               <h2 className="text-lg font-semibold mb-4 text-white">Interview Prep</h2>
-              <MockInterviewChat onGenerateQuestion={generateInterviewQuestion} />
+              <MockInterviewChat onGenerateQuestion={generateInterviewQuestion} onEvaluateAnswer={evaluateAnswer} currentQuestion={currentQuestion} />
             </div>
           </div>
         )}
