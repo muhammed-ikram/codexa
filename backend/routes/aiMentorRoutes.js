@@ -389,13 +389,17 @@ router.get('/interview/question', verifyToken, async (req, res) => {
       techCounts[key] = (techCounts[key] || 0) + 1;
     }));
     const topTech = Object.entries(techCounts).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
-    const primary = topTech[0] || 'Web Development';
+    const pool = topTech.slice(0, Math.max(1, Math.min(5, topTech.length)));
+    const primary = pool.length ? pool[Math.floor(Math.random() * pool.length)] : 'Web Development';
+
+    // Add a nonce to encourage variation across requests even with similar context
+    const nonce = `#${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
     const system = 'You are an expert technical interviewer. Return valid JSON only.';
     const user = `
 Create one interview-style question focused on the candidate's most-used technology.
 Technology: ${primary}
-Constraints: The question should be clear, concise, and assess practical understanding.
+Constraints: The question should be clear, concise, assess practical understanding, and be different from prior outputs. Vary topic angles and difficulty (easy/medium). Avoid repeating wording. ${nonce}
 Output JSON exactly as: { "topic": string, "question": string }`;
 
     const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
@@ -410,7 +414,7 @@ Output JSON exactly as: { "topic": string, "question": string }`;
           {
             modelId: 'amazon.nova-pro-v1:0',
             messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
-            inferenceConfig: { temperature: 0.3 }
+            inferenceConfig: { temperature: 0.7 }
           },
           { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${bedrockApiKey}` }, timeout: 30000 }
         );
@@ -428,7 +432,7 @@ Output JSON exactly as: { "topic": string, "question": string }`;
         const sdkResp = await client.send(new ConverseCommand({
           modelId: 'amazon.nova-pro-v1:0',
           messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
-          inferenceConfig: { temperature: 0.3 }
+          inferenceConfig: { temperature: 0.7 }
         }));
         content = sdkResp?.output?.message?.content?.[0]?.text || '';
       }
@@ -444,7 +448,7 @@ Output JSON exactly as: { "topic": string, "question": string }`;
       const sdkResp = await client.send(new ConverseCommand({
         modelId: 'amazon.nova-pro-v1:0',
         messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
-        inferenceConfig: { temperature: 0.3 }
+        inferenceConfig: { temperature: 0.7 }
       }));
       content = sdkResp?.output?.message?.content?.[0]?.text || '';
     }
