@@ -1,65 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const LaunchAdvisorPage = () => {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState('');
   const [deploymentOptions, setDeploymentOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [error, setError] = useState('');
 
-  // Mock projects data
-  const mockProjects = [
-    { id: '1', name: 'E-commerce Platform' },
-    { id: '2', name: 'Task Management App' },
-    { id: '3', name: 'Portfolio Website' }
-  ];
+  // Load user's projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setError('');
+        const res = await api.get('/projects');
+        const list = Array.isArray(res?.data?.projects) ? res.data.projects : [];
+        setProjects(list);
+      } catch (err) {
+        console.error('Failed to load projects', err);
+        setError('Failed to load projects');
+      }
+    };
+    fetchProjects();
+  }, []);
 
   const handleGetRecommendations = async () => {
     if (!selectedProject) return;
-    
     setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock deployment options data
-    const mockData = [
-      {
-        platform: "Vercel",
-        logo: "▲",
-        cost: "Free tier available, $20/month for teams",
-        pros: ["Excellent for React apps", "Global CDN", "Automatic HTTPS"],
-        cons: ["Limited serverless functions", "Not ideal for databases"],
-        isRecommended: true
-      },
-      {
-        platform: "Netlify",
-        logo: "◈",
-        cost: "Free tier available, $19/month for teams",
-        pros: ["Great CI/CD integration", "Easy setup", "Form handling"],
-        cons: ["Function execution time limits", "Less flexible than alternatives"],
-        isRecommended: false
-      },
-      {
-        platform: "AWS",
-        logo: "☁️",
-        cost: "Free tier available, pay-as-you-go",
-        pros: ["Highly scalable", "Extensive services", "Enterprise-ready"],
-        cons: ["Complex pricing", "Steep learning curve"],
-        isRecommended: false
-      },
-      {
-        platform: "Railway",
-        logo: "🚂",
-        cost: "Free tier available, $5/month per project",
-        pros: ["Developer-friendly", "One-click deployments", "Good for full-stack apps"],
-        cons: ["Newer platform", "Limited support compared to AWS"],
-        isRecommended: false
-      }
-    ];
-    
-    setDeploymentOptions(mockData);
-    setLoading(false);
+    setError('');
+    setDeploymentOptions([]);
+    try {
+      const res = await api.post('/ai-mentor/launch/recommend', { projectId: selectedProject });
+      const recs = Array.isArray(res?.data?.recommendations) ? res.data.recommendations : [];
+      setDeploymentOptions(recs);
+    } catch (err) {
+      console.error('Recommendation generation failed', err);
+      setError('Failed to generate recommendations');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleProjectSelect = (projectId) => {
@@ -83,18 +64,30 @@ const LaunchAdvisorPage = () => {
         {/* Project Selection */}
         <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-8 my-10 border border-gray-700 animate-fade-in">
           <h2 className="text-2xl font-semibold mb-6 text-white">Select a Project</h2>
+          {error && (
+            <div className="mb-4 text-sm text-red-400">{error}</div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {mockProjects.map((project) => (
+            {projects.map((project) => (
               <div
-                key={project.id}
-                onClick={() => handleProjectSelect(project.id)}
+                key={project._id}
+                onClick={() => handleProjectSelect(project._id)}
                 className={`p-5 rounded-xl border cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
-                  selectedProject === project.id
+                  selectedProject === project._id
                     ? 'bg-blue-900/30 border-blue-500 shadow-lg shadow-blue-500/10'
                     : 'bg-gray-700/50 border-gray-600 hover:border-blue-500'
                 }`}
               >
-                <h3 className="font-medium text-white">{project.name}</h3>
+                <h3 className="font-medium text-white">{project.title || project.name}</h3>
+                {Array.isArray(project.techStack) && project.techStack.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {project.techStack.slice(0, 6).map((t, i) => (
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-gray-800 border border-gray-700 rounded text-gray-300">
+                        {typeof t === 'string' ? t : (t?.name || t?.label || 'Tech')}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ const express = require("express");
 const { verifyToken } = require("../middlewares/authMiddleware");
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const axios = require('axios');
+const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 const Project = require("../models/Project");
 require("dotenv").config();
 
@@ -237,6 +238,136 @@ ${JSON.stringify(context)}
   } catch (err) {
     console.error('AI Mentor learning suggest error:', err?.response?.data || err);
     return res.status(500).json({ message: 'Failed to fetch learning suggestions. Ensure your API key has access or try again later.' });
+  }
+});
+
+// POST /api/ai-mentor/launch/recommend — AWS Bedrock (Nova Pro)
+router.post('/launch/recommend', verifyToken, async (req, res) => {
+  try {
+    const { projectId } = req.body || {};
+    if (!projectId) return res.status(400).json({ message: 'projectId is required' });
+
+    const project = await Project.findById(projectId).lean();
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+
+    const techStack = (project.techStack || []).map(t => typeof t === 'string' ? t : (t?.name || t?.label || '')).filter(Boolean);
+    const description = project.description || '';
+
+    const system = 'You are an expert cloud deployment advisor. Return valid JSON only.';
+    const user = `
+Project Title: ${project.title || project.name || 'Untitled'}
+Tech Stack: ${techStack.join(', ') || 'N/A'}
+Description: ${description}
+
+Task: Suggest practical deployment options and recommendations based on the stack, cost, scalability, CI/CD, and developer experience.
+Output strictly as JSON: {
+  "recommendations": [
+    {
+      "platform": string,
+      "logo": string, // emoji or glyph
+      "cost": string,
+      "pros": string[],
+      "cons": string[],
+      "isRecommended": boolean
+    }
+  ]
+}`;
+
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    let content = '';
+
+    // Prefer API Key flow if provided
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
+    if (bedrockApiKey) {
+      try {
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const resp = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [
+              { role: 'user', content: [{ text: `${system}\n\n${user}` }] }
+            ],
+            inferenceConfig: { temperature: 0.2 }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${bedrockApiKey}`
+            },
+            timeout: 30000
+          }
+        );
+        // Align with SDK-like shape if possible
+        content = resp?.data?.output?.message?.content?.[0]?.text || resp?.data?.content || '';
+      } catch (err) {
+        console.error('Bedrock (API key) converse error:', err?.response?.data || err?.message || err);
+        // Fall back to SDK if configured
+        try {
+          const client = new BedrockRuntimeClient({
+            region,
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+              sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+            },
+          });
+          const sdkResp = await client.send(new ConverseCommand({
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [
+              { role: 'user', content: [{ text: `${system}\n\n${user}` }] }
+            ],
+            inferenceConfig: { temperature: 0.2 }
+          }));
+          content = sdkResp?.output?.message?.content?.[0]?.text || '';
+        } catch (sdkErr) {
+          const name = sdkErr?.name || 'Error';
+          console.error('Bedrock SDK Converse error (fallback):', name, sdkErr?.message || String(sdkErr));
+          return res.status(500).json({ message: `Failed to generate recommendations via Bedrock` });
+        }
+      }
+    } else {
+      // SDK path only
+      try {
+        const client = new BedrockRuntimeClient({
+          region,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+            sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+          },
+        });
+        const resp = await client.send(new ConverseCommand({
+          modelId: 'amazon.nova-pro-v1:0',
+          messages: [
+            { role: 'user', content: [{ text: `${system}\n\n${user}` }] }
+          ],
+          inferenceConfig: { temperature: 0.2 }
+        }));
+        content = resp?.output?.message?.content?.[0]?.text || '';
+      } catch (err) {
+        const name = err?.name || 'Error';
+        const message = err?.message || String(err);
+        console.error('Bedrock Converse error:', name, message);
+        return res.status(500).json({ message: `Failed to generate recommendations via Bedrock: ${name}` });
+      }
+    }
+
+    let data;
+    try {
+      const start = content.indexOf('{');
+      const end = content.lastIndexOf('}');
+      const json = start !== -1 && end !== -1 ? content.slice(start, end + 1) : content;
+      data = JSON.parse(json);
+      if (!Array.isArray(data.recommendations)) throw new Error('Invalid JSON');
+    } catch (_) {
+      data = { recommendations: [] };
+    }
+
+    return res.json(data);
+  } catch (err) {
+    console.error('Launch recommend error:', err);
+    return res.status(500).json({ message: 'Failed to generate launch recommendations' });
   }
 });
 
