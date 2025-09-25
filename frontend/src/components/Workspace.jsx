@@ -154,6 +154,17 @@ const Workspace = () => {
 
   // Removed loading screen to prevent reload issues
 
+  if (loading || !project) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-monaco-text flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-monaco-text flex items-center justify-center">
