@@ -1,5 +1,5 @@
 // src/components/AiMentorPanel.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '../utils/api';
 import ReactFlow, { MiniMap, Controls, Background, MarkerType } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -127,9 +127,11 @@ const RenderRichMessage = ({ text = '' }) => {
   );
 };
 
-// --- MilestoneList (unchanged behavior but uses onMilestoneUpdate to persist) ---
+// --- MilestoneList (optimized to prevent reloads) ---
 const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
   const [checkedItems, setCheckedItems] = useState({});
+  const updateTimeoutRef = useRef(null);
+  const lastUpdateRef = useRef(0);
 
   useEffect(() => {
     const initialChecked = {};
@@ -141,7 +143,35 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
     setCheckedItems(initialChecked);
   }, [milestones]);
 
-  const handleCheck = (id, event) => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const debouncedUpdate = useCallback((progress, newChecked) => {
+    // Clear any existing timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    // Debounce updates to prevent rapid successive calls
+    updateTimeoutRef.current = setTimeout(() => {
+      const now = Date.now();
+      // Only update if enough time has passed since last update
+      if (now - lastUpdateRef.current > 500) {
+        lastUpdateRef.current = now;
+        if (onMilestoneUpdate) {
+          onMilestoneUpdate(progress, newChecked);
+        }
+      }
+    }, 300);
+  }, [onMilestoneUpdate]);
+
+  const handleCheck = useCallback((id, event) => {
     // Prevent any default behavior that might cause page reload
     if (event) {
       event.preventDefault();
@@ -155,8 +185,9 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
     const completed = Object.values(newChecked).filter(Boolean).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    if (onMilestoneUpdate) onMilestoneUpdate(progress, newChecked);
-  };
+    // Use debounced update instead of immediate update
+    debouncedUpdate(progress, newChecked);
+  }, [checkedItems, milestones.length, debouncedUpdate]);
 
   return (
     <div className="p-5 space-y-5 bg-gradient-to-b from-gray-800/50 to-gray-900/50 animate-fade-in h-full overflow-y-auto">
@@ -634,8 +665,8 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     }
   };
 
-  // Milestone update -> persist to backend
-  const handleMilestoneUpdate = async (progress, checkedItems) => {
+  // Milestone update -> persist to backend (optimized to prevent reloads)
+  const handleMilestoneUpdate = useCallback(async (progress, checkedItems) => {
     if (!projectId) {
       console.log('No projectId, skipping milestone update');
       return;
@@ -653,7 +684,16 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     });
     const completedCount = Object.values(checkedItems).filter(Boolean).length;
 
-    // Save to server first, then update local state
+    // Only update if there's a meaningful change
+    const currentProgress = project.progress || 0;
+    const currentCompleted = project.completedMilestones || 0;
+    
+    if (Math.abs(progress - currentProgress) < 1 && completedCount === currentCompleted) {
+      console.log('No significant change, skipping update');
+      return;
+    }
+
+    // Save to server first, then update local state only once
     try {
       const res = await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
@@ -661,34 +701,16 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
         progress
       });
       
-      // Always update local state with the calculated progress
+      // Only update local state if backend save was successful
       if (res?.data?.project) {
         // Use the project data from backend response
         onProjectUpdate(res.data.project);
-      } else {
-        // Fallback to local update with calculated progress
-        const updatedProject = {
-          ...project,
-          milestones: updatedMilestones,
-          completedMilestones: completedCount,
-          progress: progress // Use the calculated progress
-        };
-        onProjectUpdate(updatedProject);
       }
     } catch (err) {
       console.error('Failed to save milestones:', err);
-      
-      // Still update local state with calculated progress even if backend fails
-      // This ensures UI remains responsive
-      const updatedProject = {
-        ...project,
-        milestones: updatedMilestones,
-        completedMilestones: completedCount,
-        progress: progress
-      };
-      onProjectUpdate(updatedProject);
+      // Don't update local state if backend save failed to prevent inconsistencies
     }
-  };
+  }, [projectId, project.milestones, project.progress, project.completedMilestones, onProjectUpdate]);
 
   // Fetch analytics
   const fetchAnalytics = async () => {
