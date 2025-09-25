@@ -133,8 +133,10 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
 
   useEffect(() => {
     const initialChecked = {};
-    milestones.forEach(m => {
-      initialChecked[m.id] = m.completed || false;
+    milestones.forEach((m, index) => {
+      // Ensure milestone has an ID
+      const milestoneId = m.id || `milestone-${index + 1}`;
+      initialChecked[milestoneId] = m.completed || false;
     });
     setCheckedItems(initialChecked);
   }, [milestones]);
@@ -146,16 +148,12 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
       event.stopPropagation();
     }
     
-    console.log('Milestone check clicked:', { id, currentChecked: checkedItems[id] });
-    
     const newChecked = { ...checkedItems, [id]: !checkedItems[id] };
     setCheckedItems(newChecked);
 
     const total = milestones.length;
     const completed = Object.values(newChecked).filter(Boolean).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    console.log('Milestone update:', { progress, completed, total, newChecked });
 
     if (onMilestoneUpdate) onMilestoneUpdate(progress, newChecked);
   };
@@ -171,37 +169,41 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {milestones.map((milestone, index) => (
-            <div key={milestone.id || index} className={`flex items-start gap-4 p-4 rounded-xl border ${checkedItems[milestone.id] ? 'bg-green-900/20 border-green-500/50' : 'bg-gray-700/50 border-gray-600 hover:border-purple-500/50'}`}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCheck(milestone.id, e);
-                }}
-                className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-                  checkedItems[milestone.id] 
-                    ? 'bg-green-500 border-green-500 text-white' 
-                    : 'bg-gray-600 border-gray-500 hover:border-purple-500'
-                }`}
-              >
-                {checkedItems[milestone.id] && (
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-              <div className="flex-1">
-                <h4 className={`font-bold ${checkedItems[milestone.id] ? 'text-green-400 line-through' : 'text-white'}`}>{milestone.title}</h4>
-                <p className="text-sm text-gray-300 mt-2">{milestone.description}</p>
-                <div className="flex items-center gap-3 mt-3">
-                  <span className={`px-3 py-1 text-xs rounded-full border ${milestone.priority === 'high' ? 'bg-red-500/20 text-red-300 border-red-500/30' : milestone.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-green-500/20 text-green-300 border-green-500/30'}`}>{milestone.priority} priority</span>
-                  <span className="text-xs text-gray-400">{milestone.estimatedTime}</span>
+          {milestones.map((milestone, index) => {
+            // Ensure milestone has an ID
+            const milestoneId = milestone.id || `milestone-${index + 1}`;
+            return (
+              <div key={milestoneId} className={`flex items-start gap-4 p-4 rounded-xl border ${checkedItems[milestoneId] ? 'bg-green-900/20 border-green-500/50' : 'bg-gray-700/50 border-gray-600 hover:border-purple-500/50'}`}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCheck(milestoneId, e);
+                  }}
+                  className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                    checkedItems[milestoneId] 
+                      ? 'bg-green-500 border-green-500 text-white' 
+                      : 'bg-gray-600 border-gray-500 hover:border-purple-500'
+                  }`}
+                >
+                  {checkedItems[milestoneId] && (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                <div className="flex-1">
+                  <h4 className={`font-bold ${checkedItems[milestoneId] ? 'text-green-400 line-through' : 'text-white'}`}>{milestone.title}</h4>
+                  <p className="text-sm text-gray-300 mt-2">{milestone.description}</p>
+                  <div className="flex items-center gap-3 mt-3">
+                    <span className={`px-3 py-1 text-xs rounded-full border ${milestone.priority === 'high' ? 'bg-red-500/20 text-red-300 border-red-500/30' : milestone.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-green-500/20 text-green-300 border-green-500/30'}`}>{milestone.priority} priority</span>
+                    <span className="text-xs text-gray-400">{milestone.estimatedTime}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -634,55 +636,50 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
 
   // Milestone update -> persist to backend
   const handleMilestoneUpdate = async (progress, checkedItems) => {
-    if (!projectId) return;
-    
-    console.log('handleMilestoneUpdate called:', { progress, checkedItems, projectId });
+    if (!projectId) {
+      console.log('No projectId, skipping milestone update');
+      return;
+    }
     
     // Build updated milestones array from project.milestones using checkedItems
-    const updatedMilestones = (project.milestones || []).map(m => ({
-      ...m,
-      completed: !!checkedItems[m.id]
-    }));
+    const updatedMilestones = (project.milestones || []).map(m => {
+      // Ensure milestone has an ID
+      const milestoneId = m.id || `milestone-${Math.random().toString(36).substr(2, 9)}`;
+      return {
+        ...m,
+        id: milestoneId,
+        completed: !!checkedItems[milestoneId]
+      };
+    });
     const completedCount = Object.values(checkedItems).filter(Boolean).length;
 
-    console.log('Updated milestones:', { updatedMilestones, completedCount, progress });
-
-    // Local update + persist
-    const updatedProject = {
-      ...project,
-      milestones: updatedMilestones,
-      completedMilestones: completedCount,
-      progress // optional (the project model calculates too)
-    };
-    // Save to server
+    // Save to server first, then update local state
     try {
-      console.log('Saving milestones to backend...', {
-        projectId,
-        milestones: updatedMilestones,
-        completedMilestones: completedCount,
-        progress,
-        token: localStorage.getItem('token') ? 'present' : 'missing'
-      });
       const res = await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
         completedMilestones: completedCount,
         progress
       });
-      console.log('Backend response:', res.data);
+      
+      // Only update local state if backend save was successful
       if (res?.data?.project) {
+        // Use the project data from backend response
         onProjectUpdate(res.data.project);
       } else {
+        // Fallback to local update
+        const updatedProject = {
+          ...project,
+          milestones: updatedMilestones,
+          completedMilestones: completedCount,
+          progress
+        };
         onProjectUpdate(updatedProject, true);
       }
     } catch (err) {
-      console.error('Failed to save milestones', err);
-      console.error('Error details:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
-      // fallback local update
-      onProjectUpdate(updatedProject, false);
+      console.error('Failed to save milestones:', err);
+      
+      // Don't update local state if backend save failed
+      // This prevents state inconsistencies that might cause reloads
     }
   };
 

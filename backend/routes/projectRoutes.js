@@ -173,7 +173,18 @@ Do not include any commentary outside the JSON.
 
     // Save to DB (defensive defaults)
     project.description = structured.description || project.description || "";
-    project.milestones = Array.isArray(structured.milestones) ? structured.milestones : [];
+    
+    // Ensure milestones have proper IDs
+    const milestones = Array.isArray(structured.milestones) ? structured.milestones : [];
+    project.milestones = milestones.map((milestone, index) => ({
+      id: milestone.id || `milestone-${index + 1}`,
+      title: milestone.title || `Milestone ${index + 1}`,
+      description: milestone.description || "",
+      priority: milestone.priority || "medium",
+      estimatedTime: milestone.estimatedTime || "",
+      completed: milestone.completed || false
+    }));
+    
     project.blueprint = Array.isArray(structured.blueprint) ? structured.blueprint : [];
     project.completedMilestones = (project.milestones || []).filter(m => m.completed).length;
     project.isCompleted = project.milestones.length > 0 && project.completedMilestones === project.milestones.length;
