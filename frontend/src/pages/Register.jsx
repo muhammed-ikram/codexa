@@ -26,7 +26,13 @@ const Register = () => {
     setSuccess(false);
     
     try {
-      await api.post("/auth/register", formData);
+      const res = await api.post("/auth/register", formData);
+      
+      // Store token in localStorage for authentication
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
+      }
+      
       setSuccess(true);
       setTimeout(() => {
         navigate("/dashboard");

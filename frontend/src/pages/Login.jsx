@@ -23,6 +23,12 @@ const Login = () => {
     
     try {
       const res = await api.post("/auth/login", formData);
+      
+      // Store token in localStorage for authentication
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
+      }
+      
       navigate(`/dashboard`);
     } catch (err) {
       setError(err.response?.data?.message || "Invalid credentials. Please try again.");

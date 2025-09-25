@@ -47,11 +47,12 @@ const Sidebar = () => {
   const handleLogout = async () => {
     try {
       await api.post("/auth/logout");
-      // Redirect to login page
-      navigate("/login");
     } catch (err) {
       console.error("Logout failed:", err);
-      // Still redirect to login page even if logout fails
+    } finally {
+      // Clear token from localStorage
+      localStorage.removeItem("token");
+      // Redirect to login page
       navigate("/login");
     }
   };

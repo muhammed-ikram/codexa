@@ -21,16 +21,17 @@ router.post("/register", async (req, res) => {
 
     const token = jwt.sign(
       { id: newUser._id, username: newUser.username, role: newUser.role },
-      "yourSecretKey",
+      process.env.JWT_SECRET || "yourSecretKey",
       { expiresIn: "1d" }
     );
 
     res
       .cookie("token", token, {
         httpOnly: true,
-        secure: false, // change to true in production with HTTPS
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === 'production', // true in production with HTTPS
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-origin in production
         maxAge: 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // let browser handle domain
       })
       .json({ 
         message: "User registered successfully",
@@ -56,18 +57,23 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, username: user.username, role: user.role },
-      "yourSecretKey",
+      process.env.JWT_SECRET || "yourSecretKey",
       { expiresIn: "1d" }
     );
 
     res
       .cookie("token", token, {
         httpOnly: true,
-        secure: false, // change to true in production with HTTPS
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === 'production', // true in production with HTTPS
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-origin in production
         maxAge: 24 * 60 * 60 * 1000,
+        domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // let browser handle domain
       })
-      .json({ message: "Login successful",user: { id: user._id, username: user.username, role: user.role } });
+      .json({ 
+        message: "Login successful",
+        user: { id: user._id, username: user.username, role: user.role },
+        token: token
+      });
   } catch (err) {
     res.status(500).json("Server error");
   }
