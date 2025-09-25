@@ -497,6 +497,15 @@ const Dashboard = () => {
     fetchProjects();
   }, []);
 
+  // Refresh projects every 30 seconds to show updated progress
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchProjects();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Rotating motivation statements (changes every 20–30 seconds)
   const motivations = [
     "Small steps today build big systems tomorrow.",
