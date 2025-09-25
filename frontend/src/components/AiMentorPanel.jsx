@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import api from '../utils/api';
 import ReactFlow, { MiniMap, Controls, Background, MarkerType } from 'reactflow';
 import 'reactflow/dist/style.css';
+import logo from '../assets/logo.png'; // Explicitly import the logo
 
 // Lightweight renderer for Markdown-ish with lists, bold, and fenced code blocks + copy
 const RenderRichMessage = ({ text = '' }) => {
@@ -774,7 +775,7 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     <div className="h-full flex flex-col bg-gradient-to-b from-gray-800 to-gray-900">
       <div className="border-b border-gray-700 p-4">
         <h3 className="text-lg font-bold text-white flex items-center">
-          <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-6 h-6 mr-2" />
+          <img src={logo} alt="CodeXA Logo" className="w-6 h-6 mr-2" />
           AI Mentor
         </h3>
       </div>
