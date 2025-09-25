@@ -4,6 +4,8 @@ const Project = require('../models/Project');
 const User = require('../models/User'); // Import User to update projects
 const { verifyToken } = require('../middlewares/authMiddleware');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios');
+const { BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime');
 require("dotenv").config();
 
 // Get all projects for logged-in user
@@ -84,7 +86,6 @@ router.post("/:id/generate", verifyToken, async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     // Prompt Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `You are an AI mentor. Using the project info below, output STRICT JSON suitable for storage.
 Project:
   Title: ${project.title}
@@ -110,15 +111,64 @@ MILESTONE RULES:
 Do not include any commentary outside the JSON.
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    // Use Bedrock Nova Pro instead of Gemini (keep prompt and response format identical)
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
+    let responseText = '';
+    if (bedrockApiKey) {
+      try {
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const br = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: prompt }] } ],
+            inferenceConfig: { temperature: 0.2 }
+          },
+          { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${bedrockApiKey}` }, timeout: 60000 }
+        );
+        responseText = br?.data?.output?.message?.content?.[0]?.text || br?.data?.content || '';
+      } catch (e) {
+        // Fallback to SDK if API key path fails
+        const client = new BedrockRuntimeClient({
+          region,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+            sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+          },
+        });
+        const sdkRes = await client.send(new ConverseCommand({
+          modelId: 'amazon.nova-pro-v1:0',
+          messages: [ { role: 'user', content: [{ text: prompt }] } ],
+          inferenceConfig: { temperature: 0.2 }
+        }));
+        responseText = sdkRes?.output?.message?.content?.[0]?.text || '';
+      }
+    } else {
+      // SDK-only path
+      const client = new BedrockRuntimeClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+          sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+        },
+      });
+      const sdkRes = await client.send(new ConverseCommand({
+        modelId: 'amazon.nova-pro-v1:0',
+        messages: [ { role: 'user', content: [{ text: prompt }] } ],
+        inferenceConfig: { temperature: 0.2 }
+      }));
+      responseText = sdkRes?.output?.message?.content?.[0]?.text || '';
+    }
 
     // Parse JSON safely
     let structured;
     try {
       structured = JSON.parse(responseText);
     } catch (err) {
-      return res.status(500).json({ message: "Failed to parse Gemini response", raw: responseText });
+      return res.status(500).json({ message: "Failed to parse AI response", raw: responseText });
     }
 
     // Save to DB (defensive defaults)
