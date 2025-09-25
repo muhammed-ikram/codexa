@@ -603,19 +603,14 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     setLocalCompleted(project?.completedMilestones || 0);
   }, [project?.progress, project?.completedMilestones]);
 
-  // Handle immediate progress updates from milestone changes
+  // Handle immediate progress updates from milestone changes (UI only)
   const handleProgressChange = useCallback((progress, completed) => {
     setLocalProgress(progress);
     setLocalCompleted(completed);
     
-    // Immediately update the project state so other components see the change
-    const updatedProject = {
-      ...project,
-      progress: progress,
-      completedMilestones: completed
-    };
-    onProjectUpdate(updatedProject);
-  }, [project, onProjectUpdate]);
+    // DO NOT call onProjectUpdate here - let handleMilestoneUpdate handle it
+    // This prevents double updates that cause reloads
+  }, []);
 
   // Load chat history when project changes
   useEffect(() => {
@@ -697,7 +692,7 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     }
   };
 
-  // Milestone update -> persist to backend (optimized to prevent reloads)
+  // Milestone update -> persist to backend (single source of truth)
   const handleMilestoneUpdate = useCallback(async (progress, checkedItems) => {
     if (!projectId) {
       console.log('No projectId, skipping milestone update');
@@ -716,7 +711,7 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     });
     const completedCount = Object.values(checkedItems).filter(Boolean).length;
 
-    // Only update if there's a meaningful change (more lenient)
+    // Only update if there's a meaningful change
     const currentProgress = project.progress || 0;
     const currentCompleted = project.completedMilestones || 0;
     
@@ -725,27 +720,27 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
       return;
     }
 
-    // Save to server for persistence
+    // IMMEDIATELY update project state for responsive UI
+    const updatedProject = {
+      ...project,
+      milestones: updatedMilestones,
+      completedMilestones: completedCount,
+      progress: progress
+    };
+    onProjectUpdate(updatedProject);
+
+    // Then save to server for persistence (fire and forget)
     try {
-      const res = await api.patch(`/projects/${projectId}`, {
+      await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
         completedMilestones: completedCount,
         progress
       });
-      
-      // Only update if backend response has different data than what we already have
-      if (res?.data?.project) {
-        const backendProject = res.data.project;
-        // Check if backend data differs from current state
-        if (backendProject.progress !== progress || backendProject.completedMilestones !== completedCount) {
-          onProjectUpdate(backendProject);
-        }
-      }
     } catch (err) {
       console.error('Failed to save milestones:', err);
-      // Don't update local state if backend save failed to prevent inconsistencies
+      // Could implement retry logic or show error notification here
     }
-  }, [projectId, project.milestones, project.progress, project.completedMilestones, onProjectUpdate]);
+  }, [projectId, project, onProjectUpdate]);
 
   // Fetch analytics
   const fetchAnalytics = async () => {
