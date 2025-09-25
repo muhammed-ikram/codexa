@@ -656,7 +656,13 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     };
     // Save to server
     try {
-      console.log('Saving milestones to backend...');
+      console.log('Saving milestones to backend...', {
+        projectId,
+        milestones: updatedMilestones,
+        completedMilestones: completedCount,
+        progress,
+        token: localStorage.getItem('token') ? 'present' : 'missing'
+      });
       const res = await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
         completedMilestones: completedCount,
@@ -670,6 +676,11 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
       }
     } catch (err) {
       console.error('Failed to save milestones', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
       // fallback local update
       onProjectUpdate(updatedProject, false);
     }

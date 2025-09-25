@@ -24,10 +24,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.log('API Error:', error.response?.status, error.response?.data, error.config?.url);
     if (error.response?.status === 401) {
       // Token expired or invalid, clear it and redirect to login
+      console.log('401 Error - redirecting to login');
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      // Use a more gentle redirect that doesn't cause full page reload
+      if (window.location.pathname !== '/login') {
+        window.location.replace("/login");
+      }
     }
     return Promise.reject(error);
   }
