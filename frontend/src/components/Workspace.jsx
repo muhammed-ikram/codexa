@@ -10,7 +10,7 @@ const Workspace = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [codeEditorWidth, setCodeEditorWidth] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -51,7 +51,6 @@ const Workspace = () => {
   // Fetch project data by id
   const fetchProjectData = async (id) => {
     try {
-      setLoading(true);
       setError('');
       const res = await api.get(`/projects/${id}`);
       if (res?.data?.project) {
@@ -64,8 +63,6 @@ const Workspace = () => {
       console.error('Error fetching project:', err);
       setError(err?.response?.data?.message || 'Failed to load project data');
       setProject(null);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -155,16 +152,7 @@ const Workspace = () => {
     };
   }, [isResizing]);
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-gradient-to-br from-gray-900 to-black text-monaco-text flex items-center justify-center">
-        <div className="flex items-center space-x-3 animate-fade-in">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-          <span className="text-lg">Loading workspace...</span>
-        </div>
-      </div>
-    );
-  }
+  // Removed loading screen to prevent reload issues
 
   if (error) {
     return (

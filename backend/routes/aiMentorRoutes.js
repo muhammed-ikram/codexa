@@ -212,7 +212,7 @@ Return JSON array only.`;
 
 
 
-// POST /api/ai-mentor/learning/suggest (OpenAI)
+// POST /api/ai-mentor/learning/suggest (Amazon Bedrock Nova Pro)
 router.post("/learning/suggest", verifyToken, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -236,9 +236,6 @@ router.post("/learning/suggest", verifyToken, async (req, res) => {
       projects: (projects || []).map(p => ({ title: p.title || p.name, techStack: p.techStack || [], progress: p.progress || 0 }))
     };
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return res.status(500).json({ message: 'Missing OPENAI_API_KEY' });
-
     const systemMsg = 'You are a helpful learning curator. Return valid JSON only, no prose.';
     const userPrompt = `
 Given this user's recent projects and most-used technologies, recommend up-to-date learning resources (YouTube videos, blogs, docs, courses).
@@ -250,39 +247,75 @@ User context (approx.):
 ${JSON.stringify(context)}
 `;
 
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
     let content = '';
-    try {
-      const resp = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-          messages: [
-            { role: 'system', content: systemMsg },
-            { role: 'user', content: userPrompt }
-          ]
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          }
-        }
-      );
-      content = resp?.data?.choices?.[0]?.message?.content || '';
-    } catch (openAiErr) {
-      // Fallback to Gemini if OpenAI is unavailable or free tier blocked
+
+    if (bedrockApiKey) {
       try {
-        if (!process.env.GEMINI_API_KEY_2) throw openAiErr;
-        const genModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const geminiPrompt = `${systemMsg}\n\n${userPrompt}`;
-        const gemRes = await genModel.generateContent(geminiPrompt);
-        content = (await gemRes.response.text()) || '';
-      } catch (_) {
-        // If fallback also fails, rethrow original
-        throw openAiErr;
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const resp = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [
+              { role: 'user', content: [{ text: `${systemMsg}\n\n${userPrompt}` }] }
+            ],
+            inferenceConfig: { temperature: 0.2 }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${bedrockApiKey}`
+            },
+            timeout: 30000
+          }
+        );
+        content = resp?.data?.output?.message?.content?.[0]?.text || resp?.data?.content || '';
+      } catch (apiErr) {
+        // Fallback to SDK credentials if API key path fails
+        try {
+          const client = new BedrockRuntimeClient({
+            region,
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+            }
+          });
+          const command = new ConverseCommand({
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [
+              { role: 'user', content: [{ text: `${systemMsg}\n\n${userPrompt}` }] }
+            ],
+            inferenceConfig: { temperature: 0.2 }
+          });
+          const sdkResp = await client.send(command);
+          content = sdkResp?.output?.message?.content?.[0]?.text || '';
+        } catch (sdkErr) {
+          console.error('Bedrock SDK Converse error (fallback):', sdkErr?.name, sdkErr?.message || String(sdkErr));
+          throw apiErr;
+        }
       }
+    } else {
+      // SDK-only path
+      const client = new BedrockRuntimeClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+        }
+      });
+      const command = new ConverseCommand({
+        modelId: 'amazon.nova-pro-v1:0',
+        messages: [
+          { role: 'user', content: [{ text: `${systemMsg}\n\n${userPrompt}` }] }
+        ],
+        inferenceConfig: { temperature: 0.2 }
+      });
+      const sdkResp = await client.send(command);
+      content = sdkResp?.output?.message?.content?.[0]?.text || '';
     }
+
     let data;
     try {
       const start = content.indexOf('{');
