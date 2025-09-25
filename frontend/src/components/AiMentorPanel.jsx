@@ -139,13 +139,23 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
     setCheckedItems(initialChecked);
   }, [milestones]);
 
-  const handleCheck = (id) => {
+  const handleCheck = (id, event) => {
+    // Prevent any default behavior that might cause page reload
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    console.log('Milestone check clicked:', { id, currentChecked: checkedItems[id] });
+    
     const newChecked = { ...checkedItems, [id]: !checkedItems[id] };
     setCheckedItems(newChecked);
 
     const total = milestones.length;
     const completed = Object.values(newChecked).filter(Boolean).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    console.log('Milestone update:', { progress, completed, total, newChecked });
 
     if (onMilestoneUpdate) onMilestoneUpdate(progress, newChecked);
   };
@@ -163,7 +173,7 @@ const MilestoneList = ({ milestones = [], onMilestoneUpdate }) => {
         <div className="space-y-4">
           {milestones.map((milestone, index) => (
             <div key={milestone.id || index} className={`flex items-start gap-4 p-4 rounded-xl border ${checkedItems[milestone.id] ? 'bg-green-900/20 border-green-500/50' : 'bg-gray-700/50 border-gray-600 hover:border-purple-500/50'}`}>
-              <input type="checkbox" checked={checkedItems[milestone.id] || false} onChange={() => handleCheck(milestone.id)} className="mt-1 w-5 h-5 text-purple-500 bg-gray-600 border-gray-500 rounded" />
+              <input type="checkbox" checked={checkedItems[milestone.id] || false} onChange={(e) => handleCheck(milestone.id, e)} className="mt-1 w-5 h-5 text-purple-500 bg-gray-600 border-gray-500 rounded" />
               <div className="flex-1">
                 <h4 className={`font-bold ${checkedItems[milestone.id] ? 'text-green-400 line-through' : 'text-white'}`}>{milestone.title}</h4>
                 <p className="text-sm text-gray-300 mt-2">{milestone.description}</p>
@@ -607,12 +617,17 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
   // Milestone update -> persist to backend
   const handleMilestoneUpdate = async (progress, checkedItems) => {
     if (!projectId) return;
+    
+    console.log('handleMilestoneUpdate called:', { progress, checkedItems, projectId });
+    
     // Build updated milestones array from project.milestones using checkedItems
     const updatedMilestones = (project.milestones || []).map(m => ({
       ...m,
       completed: !!checkedItems[m.id]
     }));
     const completedCount = Object.values(checkedItems).filter(Boolean).length;
+
+    console.log('Updated milestones:', { updatedMilestones, completedCount, progress });
 
     // Local update + persist
     const updatedProject = {
@@ -623,11 +638,13 @@ const AiMentorPanel = ({ project = {}, onProjectUpdate = () => {}, requestAIGene
     };
     // Save to server
     try {
+      console.log('Saving milestones to backend...');
       const res = await api.patch(`/projects/${projectId}`, {
         milestones: updatedMilestones,
         completedMilestones: completedCount,
         progress
       });
+      console.log('Backend response:', res.data);
       if (res?.data?.project) {
         onProjectUpdate(res.data.project);
       } else {
