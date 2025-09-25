@@ -371,4 +371,227 @@ Output strictly as JSON: {
   }
 });
 
+// GET /api/ai-mentor/interview/question — Generate interview question from user's top tech
+router.get('/interview/question', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Use recent projects to infer top technologies
+    let projects = [];
+    try {
+      projects = await Project.find({}).sort({ updatedAt: -1 }).limit(20).lean();
+    } catch (_) {}
+
+    const techCounts = {};
+    (projects || []).forEach(p => (p.techStack || []).forEach(t => {
+      const key = typeof t === 'string' ? t : (t?.name || t?.label || 'Tech');
+      techCounts[key] = (techCounts[key] || 0) + 1;
+    }));
+    const topTech = Object.entries(techCounts).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+    const primary = topTech[0] || 'Web Development';
+
+    const system = 'You are an expert technical interviewer. Return valid JSON only.';
+    const user = `
+Create one interview-style question focused on the candidate's most-used technology.
+Technology: ${primary}
+Constraints: The question should be clear, concise, and assess practical understanding.
+Output JSON exactly as: { "topic": string, "question": string }`;
+
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
+    let content = '';
+
+    if (bedrockApiKey) {
+      try {
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const resp = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+            inferenceConfig: { temperature: 0.3 }
+          },
+          { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${bedrockApiKey}` }, timeout: 30000 }
+        );
+        content = resp?.data?.output?.message?.content?.[0]?.text || resp?.data?.content || '';
+      } catch (apiErr) {
+        // Fallback to SDK
+        const client = new BedrockRuntimeClient({
+          region,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+            sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+          },
+        });
+        const sdkResp = await client.send(new ConverseCommand({
+          modelId: 'amazon.nova-pro-v1:0',
+          messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+          inferenceConfig: { temperature: 0.3 }
+        }));
+        content = sdkResp?.output?.message?.content?.[0]?.text || '';
+      }
+    } else {
+      const client = new BedrockRuntimeClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+          sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+        },
+      });
+      const sdkResp = await client.send(new ConverseCommand({
+        modelId: 'amazon.nova-pro-v1:0',
+        messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+        inferenceConfig: { temperature: 0.3 }
+      }));
+      content = sdkResp?.output?.message?.content?.[0]?.text || '';
+    }
+
+    let data;
+    try {
+      const start = content.indexOf('{');
+      const end = content.lastIndexOf('}');
+      const json = start !== -1 && end !== -1 ? content.slice(start, end + 1) : content;
+      data = JSON.parse(json);
+      if (!data || !data.question) throw new Error('bad');
+    } catch (_) {
+      data = { topic: primary, question: `What are core principles of ${primary}?` };
+    }
+
+    return res.json(data);
+  } catch (err) {
+    console.error('Interview question error:', err);
+    return res.status(500).json({ message: 'Failed to generate interview question' });
+  }
+});
+
+// POST /api/ai-mentor/interview/evaluate — Evaluate answer; return yes/no and correct answer
+router.post('/interview/evaluate', verifyToken, async (req, res) => {
+  try {
+    const { topic, question, answer } = req.body || {};
+    if (!question || !answer) return res.status(400).json({ message: 'question and answer are required' });
+
+    const system = 'You are a strict technical interviewer. Return valid JSON only. Do not include any extra text.';
+    const user = `Evaluate the candidate's answer. If correct, return { "correct": true, "feedback": string }. If not, return { "correct": false, "feedback": string, "correctAnswer": string }. Keep feedback concise and actionable.\n\nTopic: ${topic || 'General'}\nQuestion: ${question}\nCandidate Answer: ${answer}`;
+
+    const region = process.env.AWS_REGION || process.env.BEDROCK_REGION || 'us-east-1';
+    const bedrockApiKey = process.env.BEDROCK_API_KEY;
+    let content = '';
+
+    if (bedrockApiKey) {
+      try {
+        const endpoint = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+        const resp = await axios.post(
+          endpoint,
+          {
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+            inferenceConfig: { temperature: 0.2 }
+          },
+          { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${bedrockApiKey}` }, timeout: 30000 }
+        );
+        content = resp?.data?.output?.message?.content?.[0]?.text || resp?.data?.content || '';
+      } catch (apiErr) {
+        const client = new BedrockRuntimeClient({
+          region,
+          credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+            sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+          },
+        });
+        const sdkResp = await client.send(new ConverseCommand({
+          modelId: 'amazon.nova-pro-v1:0',
+          messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+          inferenceConfig: { temperature: 0.2 }
+        }));
+        content = sdkResp?.output?.message?.content?.[0]?.text || '';
+      }
+    } else {
+      const client = new BedrockRuntimeClient({
+        region,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+          sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+        },
+      });
+      const sdkResp = await client.send(new ConverseCommand({
+        modelId: 'amazon.nova-pro-v1:0',
+        messages: [ { role: 'user', content: [{ text: `${system}\n\n${user}` }] } ],
+        inferenceConfig: { temperature: 0.2 }
+      }));
+      content = sdkResp?.output?.message?.content?.[0]?.text || '';
+    }
+
+    let data;
+    const attemptParse = (txt) => {
+      try {
+        const start = txt.indexOf('{');
+        const end = txt.lastIndexOf('}');
+        const json = start !== -1 && end !== -1 ? txt.slice(start, end + 1) : txt;
+        const parsed = JSON.parse(json);
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    };
+
+    data = attemptParse(content);
+
+    // Second pass: if missing or malformed, ask model to reformat strictly as JSON
+    if (!data || typeof data.correct !== 'boolean') {
+      const enforceSystem = 'Return ONLY a valid JSON object. No prose, no code fences, no markdown.';
+      const enforceUser = `Re-evaluate strictly and return JSON matching exactly one of: { "correct": true, "feedback": string } OR { "correct": false, "feedback": string, "correctAnswer": string }.\n\nTopic: ${topic || 'General'}\nQuestion: ${question}\nCandidate Answer: ${answer}`;
+
+      try {
+        if (bedrockApiKey) {
+          const endpoint2 = process.env.BEDROCK_ENDPOINT || `https://bedrock-runtime.${region}.amazonaws.com/model/amazon.nova-pro-v1:0/converse`;
+          const resp2 = await axios.post(
+            endpoint2,
+            {
+              modelId: 'amazon.nova-pro-v1:0',
+              messages: [ { role: 'user', content: [{ text: `${enforceSystem}\n\n${enforceUser}` }] } ],
+              inferenceConfig: { temperature: 0.1 }
+            },
+            { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${bedrockApiKey}` }, timeout: 30000 }
+          );
+          content = resp2?.data?.output?.message?.content?.[0]?.text || resp2?.data?.content || '';
+        } else {
+          const client2 = new BedrockRuntimeClient({
+            region,
+            credentials: {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+              sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
+            },
+          });
+          const sdkResp2 = await client2.send(new ConverseCommand({
+            modelId: 'amazon.nova-pro-v1:0',
+            messages: [ { role: 'user', content: [{ text: `${enforceSystem}\n\n${enforceUser}` }] } ],
+            inferenceConfig: { temperature: 0.1 }
+          }));
+          content = sdkResp2?.output?.message?.content?.[0]?.text || '';
+        }
+      } catch (_) {}
+
+      data = attemptParse(content) || data;
+    }
+
+    // Final fallback heuristic
+    if (!data || typeof data.correct !== 'boolean') {
+      const lower = String(content || '').toLowerCase();
+      const isCorrect = /\b(correct|yes|true)\b/.test(lower) && !/\b(incorrect|no|false)\b/.test(lower);
+      data = { correct: !!isCorrect, feedback: isCorrect ? 'Good answer.' : 'Answer appears incorrect.', correctAnswer: isCorrect ? undefined : undefined };
+    }
+
+    return res.json(data);
+  } catch (err) {
+    console.error('Interview evaluate error:', err);
+    return res.status(500).json({ message: 'Failed to evaluate answer' });
+  }
+});
+
 module.exports = router;
