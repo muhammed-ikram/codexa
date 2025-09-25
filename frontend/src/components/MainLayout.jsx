@@ -15,21 +15,23 @@ const MainLayout = () => {
       </div>
 
       <Sidebar />
-      <div className="flex-1 overflow-auto relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="min-h-full"
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+      <div className="flex-1 flex flex-col relative">
+        <div className="flex-1 overflow-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="min-h-full"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </div>
         {/* Footer */}
-        <div className="mt-auto py-2 text-center text-gray-500 text-xs border-t border-gray-800">
+        <div className="flex-shrink-0 py-2 text-center text-gray-500 text-xs border-t border-gray-800">
           <div className="flex items-center justify-center">
             <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2" />
             <span className="font-medium text-gray-400 italic">CodeXA - for the engineers, by the engineers</span>
