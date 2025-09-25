@@ -156,6 +156,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import axios from "axios";
+import { motion } from "framer-motion";
 
 // Colored tech badge consistent with dashboard mapping
 const TechBadge = ({ tech }) => {
@@ -353,7 +354,7 @@ const ProjectsPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-10 animate-fade-in">
+        <motion.div className="flex justify-between items-center mb-10" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <div>
             <h1 className="text-3xl font-bold">Projects</h1>
             <p className="text-gray-400 mt-2">Manage and access all your coding projects</p>
@@ -367,10 +368,10 @@ const ProjectsPage = () => {
             </svg>
             New Project
           </button>
-        </div>
+        </motion.div>
 
         {projects.length === 0 ? (
-          <div className="text-center py-20 rounded-xl border-2 border-dashed border-gray-700 animate-fade-in">
+          <motion.div className="text-center py-20 rounded-xl border-2 border-dashed border-gray-700" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="text-5xl mb-6">📁</div>
             <h3 className="text-2xl font-semibold mb-3">No projects yet</h3>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">Create your first project to get started on your development journey</p>
@@ -380,14 +381,17 @@ const ProjectsPage = () => {
             >
               Create Your First Project
             </button>
-          </div>
+          </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <div
+            {projects.map((project, idx) => (
+              <motion.div
                 key={project._id}
                 onClick={() => handleProjectClick(project._id)}
-                className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10 animate-fade-in transform hover:scale-[1.02]"
+                className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-blue-500/10 transform hover:scale-[1.02]"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.05 * idx }}
               >
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-xl font-bold text-white transition-colors duration-300 hover:text-blue-400">
@@ -420,7 +424,7 @@ const ProjectsPage = () => {
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
