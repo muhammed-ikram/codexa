@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import api from "../utils/api";
 import { useNavigate, Link } from "react-router-dom";
+import logo from '../assets/logo.png'; // Explicitly import the logo
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -54,7 +55,7 @@ const Register = () => {
             <span className="text-2xl font-bold text-white">CX</span>
           </div> */}
           <div className="flex items-center justify-center">
-            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-10 h-10 mr-3" />
+            <img src={logo} alt="CodeXA Logo" className="w-10 h-10 mr-3" />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               CodeXA
             </h1>
@@ -216,7 +217,7 @@ const Register = () => {
         {/* Footer */}
         <div className="mt-4 text-center text-gray-500 text-xs transition-all duration-300 hover:text-gray-400">
           <div className="flex items-center justify-center">
-            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+            <img src={logo} alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
             <span className="font-medium text-gray-400 italic text-xs transition-colors duration-300 hover:text-gray-300">CodeXA - for the engineers, by the engineers</span>
           </div>
           <p className="mt-1 text-xs transition-colors duration-300 hover:text-gray-300">© 2025 CodeXA. All rights reserved.</p>

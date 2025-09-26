@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import "../pages_css/Home.css";
+import logo from '../assets/logo.png'; // Explicitly import the logo
 
 function Home() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ function Home() {
       <nav className="px-6 py-4 flex justify-between items-center border-b border-gray-800">
         <div className="flex items-center space-x-3">
           <div className="flex items-center">
-            <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-8 h-8 mr-2" />
+            <img src={logo} alt="CodeXA Logo" className="w-8 h-8 mr-2" />
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               CodeXA
             </span>
@@ -113,7 +114,7 @@ function Home() {
         <div className="max-w-6xl mx-auto text-center">
           <div className="flex justify-center items-center">
             <div className="flex items-center justify-center">
-              <img src="/src/assets/logo.png" alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
+              <img src={logo} alt="CodeXA Logo" className="w-4 h-4 mr-2 transition-transform duration-300 hover:scale-110" />
               <span className="text-sm font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent transition-all duration-300 hover:from-blue-300 hover:to-purple-400">
                 CodeXA
               </span>
